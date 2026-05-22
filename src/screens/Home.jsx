@@ -53,7 +53,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
   return (
     <div style={{
-      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(220px + env(safe-area-inset-bottom))", paddingTop: 47,
+      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(90px + env(safe-area-inset-bottom))", paddingTop: 47,
     }}>
       {/* Status spacer + top bar */}
       <SHTopBar
@@ -326,28 +326,34 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
         </SHCard>
       </div>
 
-      {/* D-Day strip */}
+      {/* D-Day — full-width card (same width as quote card) */}
       {ddays.length > 0 && (
         <div style={{ padding: "20px 16px 0" }}>
-          <div className="sh-mobile-scroll" style={{ display: "flex", gap: 10, overflowX: "auto" }}>
-            {ddays.map((dd) => (
-              <div key={dd.id} style={{
-                flex: "0 0 auto", minWidth: 110,
-                background: "#fff", borderRadius: 16, padding: "14px 18px",
-                display: "flex", flexDirection: "column", gap: 2,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#8B95A1" }}>{dd.label}</div>
-                <div style={{
-                  fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1,
-                  color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
+          <SHCard radius={20} pad={16}>
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: `repeat(${Math.min(ddays.length, 2)}, 1fr)`,
+              gap: 10,
+            }}>
+              {ddays.map((dd) => (
+                <div key={dd.id} style={{
+                  background: "#F8F9FA", borderRadius: 14, padding: "18px 14px",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                  textAlign: "center",
                 }}>
-                  {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#8B95A1" }}>{dd.label}</div>
+                  <div style={{
+                    fontSize: 28, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1,
+                    color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
+                    marginTop: 2,
+                  }}>
+                    {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#B0B8C1", marginTop: 4 }}>{dd.date}</div>
                 </div>
-                <div style={{ fontSize: 10, color: "#B0B8C1", marginTop: 2 }}>{dd.date}</div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </SHCard>
         </div>
       )}
 
