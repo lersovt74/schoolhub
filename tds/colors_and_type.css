@@ -1,0 +1,258 @@
+/* ===========================================================================
+   Toss Design System (TDS) — Tokens
+   Reconstructed from the "TDS_Mobile_for_Apps_in_Toss" Figma kit.
+   Toss Product Sans (proprietary) is substituted with Pretendard — the
+   open-source family Toss Bank also funded; metrics & Korean character
+   coverage match almost exactly.
+   =========================================================================== */
+
+/* ------------------------------ Fonts ------------------------------------ */
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-Regular.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-Medium.otf") format("opentype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-SemiBold.otf") format("opentype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-ExtraBold.otf") format("opentype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Pretendard";
+  src: url("./fonts/Pretendard-Black.otf") format("opentype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ----------------------------- Tokens ------------------------------------ */
+
+:root {
+  /* ---------- Brand ---------- */
+  --tds-brand-blue:        #3182F6;  /* rgb(49,130,246)  — primary action */
+  --tds-brand-blue-pressed:#1B64DA;  /* darkened           */
+  --tds-brand-blue-weak:   rgba(49,130,246,0.16);
+  --tds-brand-blue-bg:     rgba(49,130,246,0.06);
+
+  /* ---------- Semantic colors ---------- */
+  --tds-red:               #F04452;  /* danger / negative-change */
+  --tds-red-weak:          rgba(240,68,82,0.16);
+  --tds-green:             #007B33;  /* positive / saving */
+  --tds-yellow:            #FFB400;  /* highlight */
+  --tds-yellow-soft:       #FFC84D;
+  --tds-orange:            #FF9000;  /* alerts */
+
+  /* ---------- Neutral foreground (text / icon) ---------- */
+  --tds-fg-900:            #191F28;  /* primary headlines     rgb(25,31,40)   */
+  --tds-fg-800:            #333D4B;  /* strong text           rgb(51,61,75)   */
+  --tds-fg-700:            #4E5968;  /* secondary text        rgb(78,89,104)  */
+  --tds-fg-600:            #6B7683;  /* tertiary text         rgb(107,118,131)*/
+  --tds-fg-500:            #8B95A1;  /* placeholder / hint    rgb(139,149,161)*/
+  --tds-fg-400:            #B0B8C1;  /* disabled              rgb(176,184,193)*/
+  --tds-fg-300:            #D1D6DB;
+  --tds-fg-muted:          rgba(0,19,43,0.58); /* docs body */
+
+  /* On dark / on color */
+  --tds-on-color:          #FFFFFF;
+  --tds-on-color-weak:     rgba(255,255,255,0.7);
+
+  /* ---------- Neutral background ---------- */
+  --tds-bg-base:           #FFFFFF;  /* page                  */
+  --tds-bg-grey-50:        #F9FAFB;
+  --tds-bg-grey-100:       #F2F4F6;  /* canvas / muted page   rgb(242,244,246)*/
+  --tds-bg-card:           #F6F7F8;  /* docs panel            rgb(246,247,248)*/
+  --tds-bg-grey-200:       #E5E8EB;  /* divider strong        rgb(229,232,235)*/
+  --tds-divider:           #E3E7EA;  /* hair divider          rgb(227,231,234)*/
+  --tds-overlay-dim:       rgba(0,0,0,0.45);
+
+  /* ---------- Borders ---------- */
+  --tds-border-hair:       rgba(0,0,0,0.08);
+  --tds-border-soft:       rgba(0,29,58,0.18);
+  --tds-border-strong:     #E5E8EB;
+
+  /* ---------- Neutral "weak" surface ---------- */
+  --tds-surface-weak:      rgba(7,25,76,0.05);   /* neutral button bg, chip */
+  --tds-surface-pressed:   rgba(0,0,0,0.26);     /* press overlay on color */
+  --tds-surface-loading:   rgba(0,0,0,0.13);     /* loading overlay on color */
+  --tds-surface-hover:     rgba(0,0,0,0.04);
+
+  /* ---------- Radius ---------- */
+  --tds-radius-2:          2px;
+  --tds-radius-4:          4px;   /* badge */
+  --tds-radius-8:          8px;   /* tooltip / small chip */
+  --tds-radius-10:         10px;  /* avatar tile / icon container */
+  --tds-radius-12:         12px;  /* list-row chips, image thumbs */
+  --tds-radius-14:         14px;  /* button */
+  --tds-radius-16:         16px;
+  --tds-radius-20:         20px;
+  --tds-radius-24:         24px;  /* card / sheet */
+  --tds-radius-32:         32px;  /* big hero card */
+  --tds-radius-pill:       999px;
+
+  /* ---------- Shadow ---------- */
+  --tds-shadow-1:          0 1px 2px rgba(0,19,43,0.06), 0 0 1px rgba(0,19,43,0.04);
+  --tds-shadow-2:          0 4px 12px rgba(0,19,43,0.08), 0 1px 2px rgba(0,19,43,0.04);
+  --tds-shadow-3:          0 12px 32px rgba(0,19,43,0.12), 0 2px 6px rgba(0,19,43,0.06);
+  --tds-shadow-sheet:      0 -8px 32px rgba(0,19,43,0.12);
+
+  /* ---------- Spacing (4-pt) ---------- */
+  --tds-space-2:  2px;
+  --tds-space-4:  4px;
+  --tds-space-6:  6px;
+  --tds-space-8:  8px;
+  --tds-space-10: 10px;
+  --tds-space-12: 12px;
+  --tds-space-16: 16px;
+  --tds-space-20: 20px;
+  --tds-space-24: 24px;
+  --tds-space-32: 32px;
+  --tds-space-40: 40px;
+  --tds-space-48: 48px;
+  --tds-space-64: 64px;
+
+  /* ---------- Typography family ---------- */
+  --tds-font-sans: "Pretendard", "Toss Product Sans", -apple-system, BlinkMacSystemFont,
+                   "SF Pro Text", "Apple SD Gothic Neo", "Malgun Gothic",
+                   "Helvetica Neue", Arial, sans-serif;
+  --tds-font-mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* ---------- Typography ramp (mobile defaults) ----------
+     Names follow Figma — sizes & line-heights pulled from text styles.        */
+  --tds-type-display-size:   40px;  --tds-type-display-line: 1.3;   --tds-type-display-weight: 700;
+  --tds-type-h1-size:        32px;  --tds-type-h1-line:      1.3;   --tds-type-h1-weight:      700;
+  --tds-type-h2-size:        28px;  --tds-type-h2-line:      1.3;   --tds-type-h2-weight:      700;
+  --tds-type-h3-size:        22px;  --tds-type-h3-line:      1.35;  --tds-type-h3-weight:      700;
+  --tds-type-h4-size:        20px;  --tds-type-h4-line:      1.35;  --tds-type-h4-weight:      700;
+  --tds-type-body-size:      17px;  --tds-type-body-line:    1.5;   --tds-type-body-weight:    400;
+  --tds-type-body-bold:      700;
+  --tds-type-sub-size:       15px;  --tds-type-sub-line:     1.47;  --tds-type-sub-weight:     400;
+  --tds-type-small-size:     13px;  --tds-type-small-line:   1.46;  --tds-type-small-weight:   500;
+  --tds-type-caption-size:   11px;  --tds-type-caption-line: 1.45;  --tds-type-caption-weight: 500;
+
+  /* Letter spacing — Toss tightens display sizes ~ -0.5% to -2% */
+  --tds-tracking-tight:    -0.02em;   /* display, big headlines */
+  --tds-tracking-snug:     -0.012em;  /* h1..h3 */
+  --tds-tracking-normal:    0;
+
+  /* ---------- Easing / motion ---------- */
+  --tds-ease-standard: cubic-bezier(.2, .8, .2, 1);
+  --tds-ease-emphasized: cubic-bezier(.16, 1, .3, 1);
+  --tds-dur-1: 120ms;   /* micro: tap, focus */
+  --tds-dur-2: 200ms;   /* small: hover, color */
+  --tds-dur-3: 320ms;   /* sheets, transitions */
+  --tds-dur-4: 480ms;   /* full-screen */
+}
+
+/* --------------------------- Base type ----------------------------------- */
+
+body, .tds-body {
+  font-family: var(--tds-font-sans);
+  color: var(--tds-fg-900);
+  font-size: var(--tds-type-body-size);
+  line-height: var(--tds-type-body-line);
+  font-weight: var(--tds-type-body-weight);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.tds-display, h1.tds-display {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-display-size);
+  line-height: var(--tds-type-display-line);
+  font-weight: var(--tds-type-display-weight);
+  letter-spacing: var(--tds-tracking-tight);
+  color: var(--tds-fg-900);
+}
+.tds-h1, h1 {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-h1-size);
+  line-height: var(--tds-type-h1-line);
+  font-weight: var(--tds-type-h1-weight);
+  letter-spacing: var(--tds-tracking-snug);
+  color: var(--tds-fg-900);
+}
+.tds-h2, h2 {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-h2-size);
+  line-height: var(--tds-type-h2-line);
+  font-weight: var(--tds-type-h2-weight);
+  letter-spacing: var(--tds-tracking-snug);
+  color: var(--tds-fg-900);
+}
+.tds-h3, h3 {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-h3-size);
+  line-height: var(--tds-type-h3-line);
+  font-weight: var(--tds-type-h3-weight);
+  letter-spacing: var(--tds-tracking-snug);
+  color: var(--tds-fg-900);
+}
+.tds-h4, h4 {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-h4-size);
+  line-height: var(--tds-type-h4-line);
+  font-weight: var(--tds-type-h4-weight);
+  color: var(--tds-fg-900);
+}
+.tds-body-bold, strong, b {
+  font-weight: var(--tds-type-body-bold);
+}
+.tds-sub, .tds-subtitle {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-sub-size);
+  line-height: var(--tds-type-sub-line);
+  font-weight: var(--tds-type-sub-weight);
+  color: var(--tds-fg-700);
+}
+.tds-small {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-small-size);
+  line-height: var(--tds-type-small-line);
+  font-weight: var(--tds-type-small-weight);
+  color: var(--tds-fg-700);
+}
+.tds-caption {
+  font-family: var(--tds-font-sans);
+  font-size: var(--tds-type-caption-size);
+  line-height: var(--tds-type-caption-line);
+  font-weight: var(--tds-type-caption-weight);
+  color: var(--tds-fg-600);
+  letter-spacing: 0.005em;
+}
+.tds-mono, code, pre {
+  font-family: var(--tds-font-mono);
+  font-size: 14px;
+}
+
+/* Semantic foreground tints */
+.tds-fg-muted   { color: var(--tds-fg-700); }
+.tds-fg-faint   { color: var(--tds-fg-500); }
+.tds-fg-brand   { color: var(--tds-brand-blue); }
+.tds-fg-danger  { color: var(--tds-red); }
+.tds-fg-positive{ color: var(--tds-green); }
