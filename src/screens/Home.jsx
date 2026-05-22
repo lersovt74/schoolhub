@@ -53,7 +53,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
   return (
     <div style={{
-      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(90px + env(safe-area-inset-bottom))", paddingTop: 47,
+      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(60px + env(safe-area-inset-bottom))", paddingTop: "env(safe-area-inset-top)",
     }}>
       {/* Status spacer + top bar */}
       <SHTopBar

@@ -149,8 +149,8 @@ function getHomeHeadline(nowInfo, lang, studentName = "") {
   if (!cur) return "";
 
   if (cur.type === "before" || cur.type === "homeroom" || cur.type === "after") {
-    if (lang === "ko") return "내일은 좋은 일이 있을거에요.";
-    return "Tomorrow will be a good day.";
+    if (lang === "ko") return "내일은 더 좋은 일이 있을거에요.";
+    return "Tomorrow will be an even better day.";
   }
 
   if (cur.type === "lunch") {

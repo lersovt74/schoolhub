@@ -9,15 +9,14 @@ function SHTopBar({ accent = "#3182F6", school, studentName, grade, onProfile, t
       display: "flex", alignItems: "center", gap: 12,
       background: "transparent",
     }}>
-      {/* school mark — 장평중로고 (원형, 네모 박스 없음) */}
+      {/* school mark — 장평중로고원형 */}
       <img
-        src="./src/school-logo.svg"
+        src="./src/school-logo-circle.svg"
         alt="장평중학교"
         style={{
           width: 50, height: 50,
           borderRadius: "50%",
-          objectFit: "cover",
-          objectPosition: "left center",
+          objectFit: "contain",
           flex: "0 0 50px",
         }}
       />

@@ -28,13 +28,12 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
         padding: "6px 10px 20px",
       }}>
         <img
-          src="./src/school-logo.svg"
+          src="./src/school-logo-circle.svg"
           alt="장평중학교"
           style={{
             width: 48, height: 48,
             borderRadius: "50%",
-            objectFit: "cover",
-            objectPosition: "left center",
+            objectFit: "contain",
             flex: "0 0 48px",
           }}
         />

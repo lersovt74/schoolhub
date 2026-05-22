@@ -2,9 +2,9 @@
 
 function SHLoginGate({ onSubmit }) {
   const narrow = typeof window !== "undefined" ? window.innerWidth < 420 : false;
-  const [grade, setGrade] = React.useState("3");
-  const [className, setClassName] = React.useState("5");
-  const [number, setNumber] = React.useState("12");
+  const [grade, setGrade] = React.useState("");
+  const [className, setClassName] = React.useState("");
+  const [number, setNumber] = React.useState("");
   const [name, setName] = React.useState("");
 
   const canLogin = grade && className && number && name.trim().length > 0;
@@ -39,12 +39,12 @@ function SHLoginGate({ onSubmit }) {
         </div>
 
         <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(84px, 1fr))", gap: 10 }}>
-          <SHInput label="학년" value={grade} onChange={setGrade} placeholder="3" type="number"/>
-          <SHInput label="반" value={className} onChange={setClassName} placeholder="5" type="number"/>
-          <SHInput label="번호" value={number} onChange={setNumber} placeholder="12" type="number"/>
+          <SHInput label="학년" value={grade} onChange={setGrade} placeholder="" type="number"/>
+          <SHInput label="반" value={className} onChange={setClassName} placeholder="" type="number"/>
+          <SHInput label="번호" value={number} onChange={setNumber} placeholder="" type="number"/>
         </div>
         <div style={{ marginTop: 12 }}>
-          <SHInput label="이름" value={name} onChange={setName} placeholder="예) 김다온"/>
+          <SHInput label="이름" value={name} onChange={setName} placeholder="예)홍길동"/>
         </div>
 
         <button
