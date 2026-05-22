@@ -24,7 +24,7 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
     }}>
       {/* Brand */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 4,
+        display: "flex", alignItems: "center", gap: 0,
         padding: "6px 10px 20px",
       }}>
         <img
@@ -37,7 +37,7 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
             flex: "0 0 96px",
           }}
         />
-        <div style={{ minWidth: 0 }}>
+        <div style={{ minWidth: 0, transform: "translateX(-20px)" }}>
           <div style={{ fontSize: 22, fontWeight: 800, color: "#191F28", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
             SchoolHub
           </div>

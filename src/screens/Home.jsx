@@ -53,7 +53,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
   return (
     <div style={{
-      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(60px + env(safe-area-inset-bottom))", paddingTop: "env(safe-area-inset-top)",
+      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(20px + env(safe-area-inset-bottom))", paddingTop: "env(safe-area-inset-top)",
     }}>
       {/* Status spacer + top bar */}
       <SHTopBar
@@ -65,7 +65,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       />
 
       {/* Greeting block */}
-      <div style={{ padding: "6px 20px 12px" }}>
+      <div style={{ padding: "0px 20px 19px", marginTop: -12 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: accent, letterSpacing: "-0.012em" }}>
           {dateLine}
         </div>

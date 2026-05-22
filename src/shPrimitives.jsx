@@ -5,8 +5,9 @@
 function SHTopBar({ accent = "#3182F6", school, studentName, grade, onProfile, t }) {
   return (
     <div style={{
-      padding: "14px 20px 10px",
-      display: "flex", alignItems: "center", gap: 12,
+      padding: "12px 0px 0px",
+      marginLeft: -6,
+      display: "flex", alignItems: "center", gap: 0,
       background: "transparent",
     }}>
       {/* school mark — 장평중로고원형 */}
@@ -20,7 +21,7 @@ function SHTopBar({ accent = "#3182F6", school, studentName, grade, onProfile, t
           flex: "0 0 100px",
         }}
       />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, marginLeft: -20 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#6B7683", letterSpacing: "-0.01em" }}>
           {school}
         </div>
