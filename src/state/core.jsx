@@ -531,10 +531,15 @@ function useSHData() {
     const syncFromRemote = async () => {
       const remote = await shFetchRemoteState();
       if (!alive || !remote) return;
-      shApplyDataLocal(shMergeState(shGetData(), remote));
+      const local = shGetData();
+      // Skip merge when local state is newer — prevents in-flight writes being reverted by a stale poll.
+      const localTs = Number(local.__updatedAt || 0);
+      const remoteTs = Number(remote.__updatedAt || 0);
+      if (localTs > remoteTs) return;
+      shApplyDataLocal(shMergeState(local, remote));
     };
     syncFromRemote();
-    const interval = window.setInterval(syncFromRemote, 10000);
+    const interval = window.setInterval(syncFromRemote, 30000);
     const onVisible = () => {
       if (document.visibilityState === "visible") syncFromRemote();
     };

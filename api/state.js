@@ -177,9 +177,7 @@ async function supabaseGetState() {
 async function supabaseWriteState(next) {
   const cfg = supabaseCfg();
   if (!cfg) return null;
-
-  const existing = (await supabaseGetState()) || {};
-  const merged = mergeState(existing, next);
+  // Direct upsert — client already holds the fully-merged state; skip the extra GET round-trip.
   const url = `${cfg.url}/rest/v1/schoolhub_state?on_conflict=id`;
   const res = await fetch(url, {
     method: "POST",
@@ -189,7 +187,7 @@ async function supabaseWriteState(next) {
       "Content-Type": "application/json",
       Prefer: "resolution=merge-duplicates,return=representation",
     },
-    body: JSON.stringify([{ id: KEY, state: merged }]),
+    body: JSON.stringify([{ id: KEY, state: next }]),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -197,7 +195,7 @@ async function supabaseWriteState(next) {
   }
   const rows = await res.json();
   const row = Array.isArray(rows) ? rows[0] : null;
-  return row?.state && typeof row.state === "object" ? row.state : merged;
+  return row?.state && typeof row.state === "object" ? row.state : next;
 }
 
 async function readState() {

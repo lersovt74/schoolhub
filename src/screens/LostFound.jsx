@@ -4,12 +4,14 @@
 // List (root) — segmented "찾아주세요" / "찾아가세요"
 // ─────────────────────────────────────────────────────────────────────────────
 function SHLostListScreen({ t, lang, accent, onGo, push }) {
-  const [seg, setSeg] = React.useState("found");
   const { data } = useSHData();
   const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
+  const [seg, setSeg] = React.useState(isAdmin ? "found" : "lost");
   const items = (data.lostItems || [])
     .filter((it) => it.category === seg)
     .filter((it) => it.status !== "done");
+
+  const heldCount = (data.lostItems || []).filter((it) => it.category === "found" && it.status !== "done").length;
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 20 }}>
@@ -21,8 +23,8 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
           </div>
           <div style={{ fontSize: 13, color: "#6B7683", marginTop: 4 }}>
             {lang === "ko"
-              ? "지금 학교에 보관 중인 물건이 14개 있어요"
-              : "14 items are being held right now"}
+              ? `지금 학교에 보관 중인 물건이 ${heldCount}개 있어요`
+              : `${heldCount} item${heldCount !== 1 ? "s" : ""} being held right now`}
           </div>
         </div>
         <button
@@ -231,16 +233,21 @@ function DetailRow({ icon, label, value, last }) {
 // Register form
 // ─────────────────────────────────────────────────────────────────────────────
 function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCategory = "lost" }) {
+  const { updateData } = useSHData();
   const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
   const [category, setCategory] = React.useState(isAdmin ? initialCategory : "lost");
   const [where, setWhere] = React.useState("");
   const [feature, setFeature] = React.useState("");
-  const [when, setWhen] = React.useState("2026.05.21");
+  const todayStr = React.useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const [when, setWhen] = React.useState(todayStr);
   const [photo, setPhoto] = React.useState(null);
   const fileRef = React.useRef(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const canSubmit = where.trim() && feature.trim() && photo && (isAdmin || category !== "found");
+  const canSubmit = where.trim() && feature.trim() && (isAdmin || category !== "found");
 
   const handlePhotoPick = () => {
     fileRef.current?.click();
@@ -256,34 +263,32 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCateg
   const submit = () => {
     if (!canSubmit || (category === "found" && !isAdmin)) return;
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      window.SHDataState?.update?.((draft) => {
-        if (!Array.isArray(draft.lostItems)) draft.lostItems = [];
-        draft.lostItems.unshift({
-          id: `l-${Date.now()}`,
-          category,
-          icon: "📦",
-          image: photo?.dataUrl || photo?.url || null,
-          color: "#EEF2F6",
-          iconColor: "#4E5968",
-          title_ko: feature.trim(),
-          title_en: feature.trim(),
-          asset: photo || null,
-          place_ko: where.trim(),
-          place_en: where.trim(),
-          date: when.trim(),
-          desc_ko: feature.trim(),
-          desc_en: feature.trim(),
-          status: category === "found" ? "keep" : "open",
-          postedBy: category === "found" ? "관리자" : (window.SH_USER?.name || "익명"),
-          time_ko: "방금",
-          time_en: "now",
-        });
+    updateData((draft) => {
+      if (!Array.isArray(draft.lostItems)) draft.lostItems = [];
+      draft.lostItems.unshift({
+        id: `l-${Date.now()}`,
+        category,
+        icon: "📦",
+        image: photo?.dataUrl || photo?.url || null,
+        color: "#EEF2F6",
+        iconColor: "#4E5968",
+        title_ko: feature.trim(),
+        title_en: feature.trim(),
+        asset: photo || null,
+        place_ko: where.trim(),
+        place_en: where.trim(),
+        date: when.trim(),
+        desc_ko: feature.trim(),
+        desc_en: feature.trim(),
+        status: category === "found" ? "keep" : "open",
+        postedBy: category === "found" ? "관리자" : (window.SH_USER?.name || "익명"),
+        time_ko: "방금",
+        time_en: "now",
       });
-      showToast(lang === "ko" ? "등록됐어요! 주인을 빨리 찾기를 바랄게요" : "Posted! Hope it finds its owner");
-      onBack();
-    }, 1000);
+    });
+    setSubmitting(false);
+    showToast(lang === "ko" ? "등록됐어요! 주인을 빨리 찾기를 바랄게요" : "Posted! Hope it finds its owner");
+    onBack();
   };
 
   return (

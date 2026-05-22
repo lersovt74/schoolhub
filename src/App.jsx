@@ -103,7 +103,7 @@ function SHMobileApp({ onLogout }) {
       <div style={{
         width: "100%",
         maxWidth: 520,
-        minHeight: "100dvh",
+        height: "100dvh",
         position: "relative",
         display: "flex",
         flexDirection: "column",
@@ -204,12 +204,7 @@ function SHTabBar({ tabs, active, accent, onChange }) {
       WebkitBackdropFilter: "blur(20px)",
       borderTop: "1px solid #F2F4F6",
       display: "flex",
-      position: "fixed",
-      left: 0,
-      right: 0,
-      bottom: 0,
-      maxWidth: 520,
-      margin: "0 auto",
+      flexShrink: 0,
       zIndex: 80,
       boxShadow: "0 -8px 24px rgba(0,19,43,0.04)",
     }}>

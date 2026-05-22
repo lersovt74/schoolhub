@@ -164,6 +164,7 @@ function SHBoardScreen({ t, lang, accent, push }) {
 }
 
 function SHBoardWriteScreen({ t, lang, accent, onBack, showToast }) {
+  const { updateData } = useSHData();
   const [category, setCategory] = React.useState("facility");
   const [title, setTitle] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -174,28 +175,27 @@ function SHBoardWriteScreen({ t, lang, accent, onBack, showToast }) {
   const submit = () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
-    setTimeout(() => {
-      setSubmitting(false);
-      window.SHDataState?.update?.((draft) => {
-        if (!Array.isArray(draft.suggestions)) draft.suggestions = [];
-        draft.suggestions.unshift({
-          id: `s-${Date.now()}`,
-          title_ko: title.trim(),
-          title_en: title.trim(),
-          body_ko: body.trim(),
-          body_en: body.trim(),
-          likes: 0,
-          likedBy: [],
-          comments: [],
-          status: "open",
-          author: "익명",
-          time_ko: "방금",
-          time_en: "now",
-        });
+    updateData((draft) => {
+      if (!Array.isArray(draft.suggestions)) draft.suggestions = [];
+      draft.suggestions.unshift({
+        id: `s-${Date.now()}`,
+        category,
+        title_ko: title.trim(),
+        title_en: title.trim(),
+        body_ko: body.trim(),
+        body_en: body.trim(),
+        likes: 0,
+        likedBy: [],
+        comments: [],
+        status: "open",
+        author: "익명",
+        time_ko: "방금",
+        time_en: "now",
       });
-      showToast(lang === "ko" ? "건의가 등록됐어요" : "Suggestion submitted");
-      onBack();
-    }, 900);
+    });
+    setSubmitting(false);
+    showToast(lang === "ko" ? "건의가 등록됐어요" : "Suggestion submitted");
+    onBack();
   };
 
   return (

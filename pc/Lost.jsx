@@ -3,7 +3,7 @@
 function PCLost({ L, lang, accent }) {
   const { data } = useSHData();
   const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
-  const [seg, setSeg] = React.useState("found");
+  const [seg, setSeg] = React.useState(isAdmin ? "found" : "lost");
   const [selected, setSelected] = React.useState(null);
   const [showRegister, setShowRegister] = React.useState(false);
   const [vw, setVw] = React.useState(() => window.innerWidth);
@@ -211,23 +211,28 @@ function PCDetailRow({ icon, label, value }) {
 }
 
 function PCLostRegisterModal({ L, lang, accent, segment, isAdmin, onClose }) {
+  const { updateData } = useSHData();
   const [where, setWhere] = React.useState("");
   const [feature, setFeature] = React.useState("");
-  const [when, setWhen] = React.useState("2026.05.22");
+  const todayStr = React.useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+  }, []);
+  const [when, setWhen] = React.useState(todayStr);
   const [photo, setPhoto] = React.useState(null);
   const fileRef = React.useRef(null);
-  const canSubmit = where.trim() && feature.trim() && photo && (segment !== "found" || isAdmin);
+  const canSubmit = where.trim() && feature.trim() && (segment !== "found" || isAdmin);
 
   const onFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const [asset] = await (window.SHReadFiles?.([file]) || []);
-    if (asset) setPhoto(asset);
+    const assets = await (window.SHReadFiles ? window.SHReadFiles([file]) : []);
+    if (assets?.[0]) setPhoto(assets[0]);
   };
 
   const submit = () => {
     if (!canSubmit) return;
-    window.SHDataState?.update?.((draft) => {
+    updateData((draft) => {
       if (!Array.isArray(draft.lostItems)) draft.lostItems = [];
       draft.lostItems.unshift({
         id: `l-${Date.now()}`,

@@ -10,6 +10,7 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
   const [noticeAssets, setNoticeAssets] = React.useState([]);
   const [boardReplies, setBoardReplies] = React.useState({});
   const [reportNotes, setReportNotes] = React.useState({});
+  const [uploading, setUploading] = React.useState(false);
   const noticeFileRef = React.useRef(null);
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
@@ -90,37 +91,44 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
   };
 
   const addFilesToState = async (files, kind) => {
-    const assets = await window.SHReadFiles?.(files);
-    if (!assets?.length) return;
-    updateData((draft) => {
-      const key = kind === "form" ? "forms" : "exams";
-      if (!Array.isArray(draft[key])) draft[key] = [];
-      assets.forEach((asset) => {
-        if (kind === "form") {
-          draft.forms.unshift({
-            id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-            title_ko: asset.name.replace(/\.[^.]+$/, ""),
-            title_en: asset.name.replace(/\.[^.]+$/, ""),
-            fmt: (asset.ext || "file").toUpperCase(),
-            size: Math.max(1, Math.round((asset.size || 0) / 1024)),
-            recent: 0,
-            asset,
-          });
-        } else {
-          draft.exams.unshift({
-            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
-            subject: asset.name.replace(/\.[^.]+$/, ""),
-            subjectEn: asset.name.replace(/\.[^.]+$/, ""),
-            grade: Number(window.SH_USER?.grade || 3),
-            year: new Date().getFullYear(),
-            term: 1,
-            type: "기출",
-            count: 0,
-            asset,
-          });
-        }
+    if (!files?.length) return;
+    setUploading(true);
+    try {
+      const assets = await (window.SHReadFiles ? window.SHReadFiles(files) : []);
+      if (!assets?.length) return;
+      updateData((draft) => {
+        const key = kind === "form" ? "forms" : "exams";
+        if (!Array.isArray(draft[key])) draft[key] = [];
+        assets.forEach((asset) => {
+          const baseName = asset.name.replace(/\.[^.]+$/, "");
+          if (kind === "form") {
+            draft.forms.unshift({
+              id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+              title_ko: baseName,
+              title_en: baseName,
+              fmt: (asset.ext || "file").toUpperCase(),
+              size: Math.max(1, Math.round((asset.size || 0) / 1024)),
+              recent: 0,
+              asset,
+            });
+          } else {
+            draft.exams.unshift({
+              id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+              subject: baseName,
+              subjectEn: baseName,
+              grade: Number(window.SH_USER?.grade || 3),
+              year: new Date().getFullYear(),
+              term: 1,
+              type: "기출",
+              count: 0,
+              asset,
+            });
+          }
+        });
       });
-    });
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -268,8 +276,8 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
           <div style={{ display: "flex", gap: 8 }}>
             <input ref={formFileRef} type="file" accept=".pdf,.hwp,.doc,.docx" multiple style={{ display: "none" }} onChange={(e) => addFilesToState(e.target.files, "form")} />
             <input ref={examFileRef} type="file" accept=".pdf,.hwp,.doc,.docx" multiple style={{ display: "none" }} onChange={(e) => addFilesToState(e.target.files, "exam")} />
-            <button onClick={() => formFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#E8F1FE", color: "#1B64DA", fontWeight: 800, cursor: "pointer" }}>출결 양식 업로드</button>
-            <button onClick={() => examFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#FFF6DD", color: "#B96B00", fontWeight: 800, cursor: "pointer" }}>기출문제 업로드</button>
+            <button onClick={() => !uploading && formFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#E8F1FE", color: "#1B64DA", fontWeight: 800, cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.6 : 1 }}>{uploading ? "업로드 중…" : "출결 양식 업로드"}</button>
+            <button onClick={() => !uploading && examFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#FFF6DD", color: "#B96B00", fontWeight: 800, cursor: uploading ? "not-allowed" : "pointer", opacity: uploading ? 0.6 : 1 }}>{uploading ? "업로드 중…" : "기출문제 업로드"}</button>
           </div>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
             <SHCard radius={12} pad={12}>
