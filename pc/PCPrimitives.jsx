@@ -27,15 +27,17 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
         display: "flex", alignItems: "center", gap: 10,
         padding: "6px 10px 20px",
       }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: 10,
-          background: "#fff", flex: "0 0 44px",
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          overflow: "hidden",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
-        }}>
-          <img src="./src/school-logo.svg" alt="장평중학교" style={{ width: 40, height: 40, objectFit: "contain" }} />
-        </div>
+        <img
+          src="./src/school-logo.svg"
+          alt="장평중학교"
+          style={{
+            width: 48, height: 48,
+            borderRadius: "50%",
+            objectFit: "cover",
+            objectPosition: "left center",
+            flex: "0 0 48px",
+          }}
+        />
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: "#191F28", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
             SchoolHub

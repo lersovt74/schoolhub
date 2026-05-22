@@ -9,16 +9,18 @@ function SHTopBar({ accent = "#3182F6", school, studentName, grade, onProfile, t
       display: "flex", alignItems: "center", gap: 12,
       background: "transparent",
     }}>
-      {/* school mark — 장평중로고 */}
-      <div style={{
-        width: 42, height: 42, borderRadius: 12,
-        background: "#fff", flex: "0 0 42px",
-        display: "inline-flex", alignItems: "center", justifyContent: "center",
-        overflow: "hidden",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.13)",
-      }}>
-        <img src="./src/school-logo.svg" alt="장평중학교" style={{ width: 38, height: 38, objectFit: "contain" }} />
-      </div>
+      {/* school mark — 장평중로고 (원형, 네모 박스 없음) */}
+      <img
+        src="./src/school-logo.svg"
+        alt="장평중학교"
+        style={{
+          width: 50, height: 50,
+          borderRadius: "50%",
+          objectFit: "cover",
+          objectPosition: "left center",
+          flex: "0 0 50px",
+        }}
+      />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#6B7683", letterSpacing: "-0.01em" }}>
           {school}
