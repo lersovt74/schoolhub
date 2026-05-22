@@ -73,40 +73,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
           {t.studentName}{lang === "ko" ? "님, " : ", "}<br/>
           {headline}
         </div>
-        {quote.text && (
-          <div style={{ marginTop: 10, fontSize: 13, color: "#6B7683", fontStyle: "italic", lineHeight: 1.55, letterSpacing: "-0.012em" }}>
-            "{quote.text}"
-            {quote.author && (
-              <span style={{ display: "block", marginTop: 2, fontSize: 11, fontStyle: "normal", color: "#8B95A1" }}>— {quote.author}</span>
-            )}
-          </div>
-        )}
       </div>
-
-      {/* D-Day strip */}
-      {ddays.length > 0 && (
-        <div style={{ padding: "0 16px 12px" }}>
-          <div className="sh-mobile-scroll" style={{ display: "flex", gap: 8, overflowX: "auto" }}>
-            {ddays.map((dd) => (
-              <div key={dd.id} style={{
-                flex: "0 0 auto", minWidth: 100,
-                background: "#fff", borderRadius: 14, padding: "12px 16px",
-                display: "flex", flexDirection: "column", gap: 3,
-                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7683" }}>{dd.label}</div>
-                <div style={{
-                  fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em",
-                  color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
-                }}>
-                  {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
-                </div>
-                <div style={{ fontSize: 10, color: "#8B95A1" }}>{dd.date}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Hero: today's lunch — rich card */}
       <div style={{ padding: "0 16px" }}>
@@ -358,6 +325,52 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
           </div>
         </SHCard>
       </div>
+
+      {/* D-Day strip */}
+      {ddays.length > 0 && (
+        <div style={{ padding: "20px 16px 0" }}>
+          <div className="sh-mobile-scroll" style={{ display: "flex", gap: 10, overflowX: "auto" }}>
+            {ddays.map((dd) => (
+              <div key={dd.id} style={{
+                flex: "0 0 auto", minWidth: 110,
+                background: "#fff", borderRadius: 16, padding: "14px 18px",
+                display: "flex", flexDirection: "column", gap: 2,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#8B95A1" }}>{dd.label}</div>
+                <div style={{
+                  fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1,
+                  color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
+                }}>
+                  {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
+                </div>
+                <div style={{ fontSize: 10, color: "#B0B8C1", marginTop: 2 }}>{dd.date}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quote / Motto */}
+      {quote.text && (
+        <div style={{ padding: "20px 16px 0" }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "24px 22px",
+            textAlign: "center",
+          }}>
+            <div style={{
+              fontFamily: "'NanumMyeongjo', serif",
+              fontSize: 20, fontWeight: 700, color: "#191F28",
+              lineHeight: 1.65, letterSpacing: "0.01em",
+            }}>
+              {quote.text}
+            </div>
+            {quote.author && (
+              <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: "#8B95A1" }}>— {quote.author}</div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

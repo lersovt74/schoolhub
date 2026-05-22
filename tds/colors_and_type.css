@@ -51,6 +51,29 @@
   font-display: swap;
 }
 
+/* Nanum Myeongjo — for quote/motto display */
+@font-face {
+  font-family: "NanumMyeongjo";
+  src: url("./fonts/NanumMyeongjo.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "NanumMyeongjo";
+  src: url("./fonts/NanumMyeongjoBold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "NanumMyeongjo";
+  src: url("./fonts/NanumMyeongjoExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ----------------------------- Tokens ------------------------------------ */
 
 :root {

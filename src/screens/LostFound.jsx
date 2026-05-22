@@ -134,7 +134,7 @@ function SHLostDetailScreen({ t, lang, accent, itemId, onBack, showToast }) {
   }
 
   return (
-    <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 100 }}>
+    <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 28 }}>
       <SHNav title="" onBack={onBack} right={
         <button className="tds-press" style={{
           width: 44, height: 44, border: 0, background: "transparent", color: "#191F28",
@@ -182,27 +182,15 @@ function SHLostDetailScreen({ t, lang, accent, itemId, onBack, showToast }) {
         </SHCard>
       </div>
 
-      {/* Trust card */}
+      {/* Info card */}
       <div style={{ padding: "16px 16px 0" }}>
         <SHCard radius={14} pad={14} bg="rgba(49,130,246,0.06)" style={{ display: "flex", gap: 10 }}>
           <IcShieldCheck size={20} color={accent}/>
-          <div style={{ flex: 1, fontSize: 12, color: "#4E5968", lineHeight: 1.5 }}>
-            {lang === "ko"
-              ? "본인 거예요 버튼을 누르면 행정실 선생님께 연결돼요. 신원 확인 후 보관 중인 물건을 받을 수 있어요."
-              : "Tap \"It's mine\" to ping the admin office. Bring student ID to claim."}
+          <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#4E5968", lineHeight: 1.5 }}>
+            {lang === "ko" ? "분실물은 본교무실에서 보관중입니다." : "Lost items are kept at the main office."}
           </div>
         </SHCard>
       </div>
-
-      <SHBottomCTA>
-        <button onClick={() => showToast(lang === "ko" ? "행정실에 연결 중이에요…" : "Connecting to admin office…")}
-          className="tds-press" style={{
-            width: "100%", height: 56, borderRadius: 14, border: 0,
-            background: accent, color: "#fff",
-            fontSize: 17, fontWeight: 800, letterSpacing: "-0.012em",
-            cursor: "pointer", fontFamily: "inherit",
-          }}>{t.lost_owner}</button>
-      </SHBottomCTA>
     </div>
   );
 }

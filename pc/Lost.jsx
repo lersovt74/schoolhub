@@ -167,17 +167,10 @@ function PCLost({ L, lang, accent }) {
               background: `${accent}10`, display: "flex", gap: 10,
             }}>
               <IcShieldCheck size={18} color={accent}/>
-              <div style={{ flex: 1, fontSize: 12, color: "#4E5968", lineHeight: 1.55 }}>
-                {lang === "ko"
-                  ? "본인 거예요 버튼을 누르면 행정실 선생님께 연결돼요. 신원 확인 후 보관 중인 물건을 받을 수 있어요."
-                  : "Tap \"It's mine\" and the office can help verify the owner."}
+              <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#4E5968", lineHeight: 1.55 }}>
+                {lang === "ko" ? "분실물은 본교무실에서 보관중입니다." : "Lost items are kept at the main office."}
               </div>
             </div>
-
-            <button className="tds-press" style={{
-              marginTop: 18, width: "100%", height: 52, borderRadius: 12, border: 0,
-              background: accent, color: "#fff", fontSize: 15, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
-            }}>{L.lost_owner}</button>
           </>
         ) : (
           <div style={{ padding: "40px 0", textAlign: "center", color: "#8B95A1" }}>

@@ -152,40 +152,44 @@ function PCHome({ L, lang, accent, onNavigate }) {
       </div>
 
       <PCCard style={{ gridColumn: "2 / 3", alignSelf: "start" }} pad={24}>
-        <div style={{
-          borderRadius: 14, border: "1px solid #F2F4F6",
-          background: "#fff",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          textAlign: "center", padding: "24px 26px",
-          minHeight: ddays.length > 0 ? 0 : 204,
-        }}>
-          <div>
-            {quote.text && (
-              <div style={{ fontSize: 22, fontWeight: 500, color: "#6B7683", letterSpacing: "-0.012em", lineHeight: 1.45, fontStyle: "italic" }}>
-                "{quote.text}"
+        {quote.text && (
+          <div style={{
+            borderRadius: 14, border: "1px solid #F2F4F6",
+            background: "#fff",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            textAlign: "center", padding: "28px 26px",
+            minHeight: ddays.length > 0 ? 0 : 180,
+          }}>
+            <div>
+              <div style={{
+                fontFamily: "'NanumMyeongjo', serif",
+                fontSize: 22, fontWeight: 700, color: "#191F28",
+                lineHeight: 1.65, letterSpacing: "0.01em",
+              }}>
+                {quote.text}
               </div>
-            )}
-            {quote.author && (
-              <div style={{ marginTop: 8, fontSize: 13, color: "#8B95A1", fontStyle: "normal" }}>— {quote.author}</div>
-            )}
+              {quote.author && (
+                <div style={{ marginTop: 10, fontSize: 13, fontWeight: 600, color: "#8B95A1" }}>— {quote.author}</div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
         {ddays.length > 0 && (
-          <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 8 }}>
             {ddays.map((dd) => (
               <div key={dd.id} style={{
                 flex: "1 1 0", minWidth: 80,
-                background: "#F8F9FA", borderRadius: 12, padding: "10px 14px",
+                background: "#F8F9FA", borderRadius: 14, padding: "14px 16px",
                 textAlign: "center",
               }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7683" }}>{dd.label}</div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: "#8B95A1", marginBottom: 4 }}>{dd.label}</div>
                 <div style={{
-                  fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 2,
+                  fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.1,
                   color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
                 }}>
                   {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
                 </div>
-                <div style={{ fontSize: 11, color: "#8B95A1", marginTop: 2 }}>{dd.date}</div>
+                <div style={{ fontSize: 10, color: "#B0B8C1", marginTop: 4 }}>{dd.date}</div>
               </div>
             ))}
           </div>
