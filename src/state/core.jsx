@@ -27,6 +27,16 @@ function shBackendCfg() {
   return cfg;
 }
 
+function shApplyDataLocal(next, options = {}) {
+  const { persist = true, notify = true } = options;
+  const copy = shClone(next || {});
+  if (persist) localStorage.setItem(SH_DATA_KEY, JSON.stringify(copy));
+  window.SH_DATA = copy;
+  window.SH_RUNTIME_DATA = copy;
+  if (notify) window.dispatchEvent(new CustomEvent("sh:data-change", { detail: copy }));
+  return copy;
+}
+
 async function shFetchRemoteState() {
   const cfg = shBackendCfg();
   if (!cfg) return null;
@@ -44,16 +54,19 @@ async function shFetchRemoteState() {
 
 async function shPushRemoteState(state) {
   const cfg = shBackendCfg();
-  if (!cfg) return false;
+  if (!cfg) return null;
   try {
     const res = await fetch(cfg.endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ state }),
     });
-    return res.ok;
+    if (!res.ok) return null;
+    const json = await res.json().catch(() => null);
+    const next = json?.state;
+    return next && typeof next === "object" ? next : null;
   } catch (_) {
-    return false;
+    return null;
   }
 }
 
@@ -87,21 +100,18 @@ function shNormalizeUser(user) {
 }
 
 function shSaveData(next) {
-  const copy = shClone(next);
-  localStorage.setItem(SH_DATA_KEY, JSON.stringify(copy));
-  window.SH_DATA = copy;
-  window.SH_RUNTIME_DATA = copy;
-  window.dispatchEvent(new CustomEvent("sh:data-change", { detail: copy }));
-  shPushRemoteState(copy);
+  const copy = shApplyDataLocal(next);
+  shPushRemoteState(copy).then((remote) => {
+    if (!remote) return;
+    shApplyDataLocal(remote);
+  });
 }
 
 function shLoadData() {
   if (!window.SH_DEFAULT_DATA) window.SH_DEFAULT_DATA = shClone(window.SH_DATA || {});
   const stored = shSafeParse(localStorage.getItem(SH_DATA_KEY), null);
   const next = stored && typeof stored === "object" ? stored : shClone(window.SH_DEFAULT_DATA);
-  window.SH_DATA = next;
-  window.SH_RUNTIME_DATA = next;
-  return next;
+  return shApplyDataLocal(next, { notify: false });
 }
 
 function shGetData() {
@@ -342,11 +352,24 @@ function useSHData() {
   }, []);
   React.useEffect(() => {
     let alive = true;
-    shFetchRemoteState().then((remote) => {
+    const syncFromRemote = async () => {
+      const remote = await shFetchRemoteState();
       if (!alive || !remote) return;
-      shSaveData(remote);
-    });
-    return () => { alive = false; };
+      shApplyDataLocal(remote);
+    };
+    syncFromRemote();
+    const interval = window.setInterval(syncFromRemote, 10000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") syncFromRemote();
+    };
+    window.addEventListener("focus", syncFromRemote);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", syncFromRemote);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
   return { data, setData: shSaveData, updateData: shUpdateData, resetData: shResetData };
 }
