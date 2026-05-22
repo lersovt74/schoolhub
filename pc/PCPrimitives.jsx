@@ -31,10 +31,10 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
           src="./src/school-logo-circle.svg"
           alt="장평중학교"
           style={{
-            width: 48, height: 48,
+            width: 96, height: 96,
             borderRadius: "50%",
             objectFit: "contain",
-            flex: "0 0 48px",
+            flex: "0 0 96px",
           }}
         />
         <div style={{ minWidth: 0 }}>
