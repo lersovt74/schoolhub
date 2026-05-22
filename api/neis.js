@@ -1,6 +1,12 @@
 // api/neis.js — server-side proxy for NEIS OpenAPI (Vercel Serverless Function).
 
 const BASE_URL = "https://open.neis.go.kr/hub";
+const NEIS_BROWSER_HEADERS = {
+  Accept: "*/*",
+  "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+  "User-Agent":
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+};
 
 function getQueryEntries(req) {
   const rawUrl = typeof req?.url === "string" ? req.url : "/";
@@ -52,7 +58,8 @@ export default async function handler(req, res) {
 
     const upstream = await fetch(url.toString(), {
       method: "GET",
-      headers: { Accept: "application/json" },
+      cache: "no-store",
+      headers: NEIS_BROWSER_HEADERS,
     });
     const text = await upstream.text();
     res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=600");
