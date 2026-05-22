@@ -24,7 +24,7 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
     }}>
       {/* Brand */}
       <div style={{
-        display: "flex", alignItems: "center", gap: 10,
+        display: "flex", alignItems: "center", gap: 4,
         padding: "6px 10px 20px",
       }}>
         <img
