@@ -65,7 +65,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       />
 
       {/* Greeting block */}
-      <div style={{ padding: "10px 20px 16px" }}>
+      <div style={{ padding: "6px 20px 12px" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: accent, letterSpacing: "-0.012em" }}>
           {dateLine}
         </div>
@@ -136,7 +136,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       </div>
 
       {/* Today's timetable strip */}
-      <div style={{ padding: "16px 16px 0" }}>
+      <div style={{ padding: "12px 16px 0" }}>
         <SHCard radius={20} pad={0} onClick={() => onGo("timetable")} style={{ overflow: "hidden" }}>
           <div style={{ padding: "16px 20px 8px", display: "flex", alignItems: "center" }}>
             <div>
@@ -177,7 +177,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       </div>
 
       {/* Two-up: notices + upcoming */}
-      <div style={{ padding: "16px 16px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ padding: "12px 16px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <SHCard radius={20} pad={16} onClick={() => onGo("notices")}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <SHTile bg="rgba(240,68,82,0.12)" color="#F04452" size={28} radius={8}>
@@ -225,7 +225,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       </div>
 
       {/* Anonymous report — featured promo */}
-      <div style={{ padding: "16px 16px 0" }}>
+      <div style={{ padding: "12px 16px 0" }}>
         <SHCard
           radius={20}
           pad={0}
@@ -264,7 +264,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       </div>
 
       {/* Lost & Found recent — only "찾아가세요(found)" items */}
-      <div style={{ padding: "20px 16px 0" }}>
+      <div style={{ padding: "14px 16px 0" }}>
         <SHSection title={t.home_lost_recent} action={lang === "ko" ? "전체보기" : "See all"} onAction={() => onGo("lost")} />
         <SHCard radius={20} pad={0} style={{ overflow: "hidden" }}>
           {lostItemsFound.length === 0 && (
@@ -304,7 +304,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       </div>
 
       {/* Quick shortcuts */}
-      <div style={{ padding: "20px 16px 0" }}>
+      <div style={{ padding: "14px 16px 0" }}>
         <SHSection title={t.home_quick} />
         <SHCard radius={20} pad={16}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
@@ -328,7 +328,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
       {/* D-Day — full-width card (same width as quote card) */}
       {ddays.length > 0 && (
-        <div style={{ padding: "20px 16px 0" }}>
+        <div style={{ padding: "14px 16px 0" }}>
           <SHCard radius={20} pad={16}>
             <div style={{
               display: "grid",
@@ -359,7 +359,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
       {/* Quote / Motto */}
       {quote.text && (
-        <div style={{ padding: "20px 16px 0" }}>
+        <div style={{ padding: "14px 16px 0" }}>
           <div style={{
             background: "#fff", borderRadius: 20, padding: "24px 22px",
             textAlign: "center",

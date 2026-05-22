@@ -38,10 +38,10 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
           }}
         />
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 800, color: "#191F28", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#191F28", letterSpacing: "-0.025em", lineHeight: 1.15 }}>
             SchoolHub
           </div>
-          <div style={{ fontSize: 11, color: "#8B95A1", fontWeight: 600, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 14, color: "#8B95A1", fontWeight: 600, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {school}
           </div>
         </div>
