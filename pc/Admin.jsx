@@ -14,7 +14,7 @@ function PCAdmin({ L, lang, accent }) {
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
   const reportStatusLabel = (status) => ({
-    received: "접수 완료",
+    received: "접수완료",
     review: "검토 중",
     resolved: "처리 완료",
   }[status] || status);
@@ -181,6 +181,11 @@ function PCAdmin({ L, lang, accent }) {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 14, fontWeight: 800, color: "#191F28" }}>{n.title}</div>
                   {n.body && <div style={{ marginTop: 4, fontSize: 12, color: "#6B7683", lineHeight: 1.5 }}>{n.body}</div>}
+                  {Array.isArray(n.attachments) && n.attachments.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 12, color: "#6B7683" }}>
+                      첨부 {n.attachments.length}개 · {n.attachments.map((asset) => asset.name).join(", ")}
+                    </div>
+                  )}
                 </div>
                 <button onClick={() => removeItem("notices", n.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>

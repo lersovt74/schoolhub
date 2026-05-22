@@ -128,7 +128,7 @@ function PCNoticeDetail({ L, lang, accent, noticeId }) {
             {imageAssets.map((asset) => (
               <img
                 key={asset.id}
-                src={asset.dataUrl}
+                src={asset.dataUrl || asset.url}
                 alt={asset.name}
                 style={{ width: "100%", borderRadius: 16, border: "1px solid #E5E8EB" }}
               />

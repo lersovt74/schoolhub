@@ -94,7 +94,7 @@ function PCLost({ L, lang, accent }) {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 56, position: "relative", overflow: "hidden",
                 }}>
-                  {it.image ? <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : it.icon}
+                  {(it.image || it.asset?.url || it.asset?.dataUrl) ? <img src={it.image || it.asset?.url || it.asset?.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : it.icon}
                   <span style={{
                     position: "absolute", top: 8, left: 8,
                     padding: "3px 8px", borderRadius: 6,
@@ -139,7 +139,7 @@ function PCLost({ L, lang, accent }) {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 140, position: "relative", overflow: "hidden",
             }}>
-              {current.image ? <img src={current.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : current.icon}
+              {(current.image || current.asset?.url || current.asset?.dataUrl) ? <img src={current.image || current.asset?.url || current.asset?.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : current.icon}
               <div style={{ position: "absolute", top: 14, left: 14 }}>
                 <span style={{
                   padding: "4px 10px", borderRadius: 6,
@@ -218,12 +218,11 @@ function PCLostRegisterModal({ L, lang, accent, segment, isAdmin, onClose }) {
   const fileRef = React.useRef(null);
   const canSubmit = where.trim() && feature.trim() && photo && (segment !== "found" || isAdmin);
 
-  const onFileChange = (e) => {
+  const onFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhoto({ name: file.name, dataUrl: String(reader.result || "") });
-    reader.readAsDataURL(file);
+    const [asset] = await (window.SHReadFiles?.([file]) || []);
+    if (asset) setPhoto(asset);
   };
 
   const submit = () => {
@@ -234,7 +233,8 @@ function PCLostRegisterModal({ L, lang, accent, segment, isAdmin, onClose }) {
         id: `l-${Date.now()}`,
         category: segment,
         icon: "📦",
-        image: photo?.dataUrl || null,
+        image: photo?.dataUrl || photo?.url || null,
+        asset: photo || null,
         color: "#EEF2F6",
         iconColor: "#4E5968",
         title_ko: feature.trim(),
@@ -277,7 +277,7 @@ function PCLostRegisterModal({ L, lang, accent, segment, isAdmin, onClose }) {
           background: photo ? `${accent}1F` : "#fff", cursor: "pointer", overflow: "hidden",
           display: "flex", alignItems: "center", justifyContent: "center",
         }}>
-          {photo ? <img src={photo.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : <div style={{ color: "#6B7683", fontWeight: 700 }}>{L.lost_form_photo}</div>}
+          {photo ? <img src={photo.dataUrl || photo.url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }}/> : <div style={{ color: "#6B7683", fontWeight: 700 }}>{L.lost_form_photo}</div>}
         </button>
         <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <PCField label={L.lost_form_where} value={where} onChange={setWhere} placeholder={L.lost_form_where_ph}/>

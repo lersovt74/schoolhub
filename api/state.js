@@ -31,9 +31,29 @@ function pickEntityKey(item) {
   return String(item.id || item.code || item.key || item.slug || "").trim();
 }
 
-function mergeArrays(existing, incoming, fieldName = "") {
+function mergeDeletedMaps(existing, incoming) {
+  const next = isObject(existing) ? { ...existing } : {};
+  if (!isObject(incoming)) return next;
+  for (const [bucket, values] of Object.entries(incoming)) {
+    if (!isObject(values)) continue;
+    next[bucket] = { ...(next[bucket] || {}), ...values };
+  }
+  return next;
+}
+
+function deletedFor(deletedMap, fieldName) {
+  if (!fieldName || !isObject(deletedMap)) return {};
+  return isObject(deletedMap[fieldName]) ? deletedMap[fieldName] : {};
+}
+
+function mergeArrays(existing, incoming, fieldName = "", deletedMap = {}) {
   if (!Array.isArray(existing)) return Array.isArray(incoming) ? incoming : existing;
   if (!Array.isArray(incoming)) return existing;
+  const deleted = deletedFor(deletedMap, fieldName);
+  const isDeleted = (item) => {
+    const key = pickEntityKey(item);
+    return key && deleted[key];
+  };
 
   const existingKeys = existing.map(pickEntityKey);
   const incomingKeys = incoming.map(pickEntityKey);
@@ -43,39 +63,42 @@ function mergeArrays(existing, incoming, fieldName = "") {
     existing.every((item, i) => !!existingKeys[i]) &&
     incoming.every((item, i) => !!incomingKeys[i]);
 
-  if (!canKey) return incoming;
+  if (!canKey) return incoming.filter((item) => !isDeleted(item));
 
   const map = new Map();
-  existing.forEach((item) => map.set(pickEntityKey(item), item));
+  existing.forEach((item) => {
+    if (!isDeleted(item)) map.set(pickEntityKey(item), item);
+  });
   incoming.forEach((item) => {
+    if (isDeleted(item)) return;
     const key = pickEntityKey(item);
     const prev = map.get(key);
-    map.set(key, mergeValue(prev, item, fieldName));
+    map.set(key, mergeValue(prev, item, fieldName, deletedMap));
   });
 
   const ordered = [];
   const seen = new Set();
   incoming.forEach((item) => {
     const key = pickEntityKey(item);
-    if (seen.has(key)) return;
+    if (seen.has(key) || deleted[key]) return;
     ordered.push(map.get(key));
     seen.add(key);
   });
   existing.forEach((item) => {
     const key = pickEntityKey(item);
-    if (seen.has(key)) return;
+    if (seen.has(key) || deleted[key]) return;
     ordered.push(map.get(key));
     seen.add(key);
   });
   return ordered;
 }
 
-function mergeValue(existing, incoming, fieldName = "") {
+function mergeValue(existing, incoming, fieldName = "", deletedMap = {}) {
   if (incoming == null) return existing;
   if (existing == null) return incoming;
 
   if (Array.isArray(existing) || Array.isArray(incoming)) {
-    return mergeArrays(existing, incoming, fieldName);
+    return mergeArrays(existing, incoming, fieldName, deletedMap);
   }
 
   if (typeof existing === "number" && typeof incoming === "number") {
@@ -86,7 +109,7 @@ function mergeValue(existing, incoming, fieldName = "") {
   if (isObject(existing) && isObject(incoming)) {
     const next = { ...existing };
     for (const key of Object.keys(incoming)) {
-      next[key] = mergeValue(existing[key], incoming[key], key);
+      next[key] = mergeValue(existing[key], incoming[key], key, deletedMap);
     }
     return next;
   }
@@ -97,7 +120,10 @@ function mergeValue(existing, incoming, fieldName = "") {
 function mergeState(existing, incoming) {
   if (!isObject(existing)) return incoming;
   if (!isObject(incoming)) return existing;
-  return mergeValue(existing, incoming, "");
+  const deletedMap = mergeDeletedMaps(existing.__deleted, incoming.__deleted);
+  const merged = mergeValue(existing, incoming, "", deletedMap);
+  if (Object.keys(deletedMap).length > 0) merged.__deleted = deletedMap;
+  return merged;
 }
 
 async function kvCmd(cmd) {

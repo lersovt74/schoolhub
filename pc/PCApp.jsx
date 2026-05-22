@@ -8,7 +8,7 @@ const PC_TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
 
 const PC_ACCENTS = ["#3182F6", "#2D7D4B", "#7A5AE0", "#FF6B35"];
 
-function SHDesktopApp() {
+function SHDesktopApp({ onLogout }) {
   const [tw, setTweak] = useTweaks(PC_TWEAK_DEFAULTS);
   const lang = tw.language;
   const L = window.SH_STRINGS[lang];
@@ -100,7 +100,7 @@ function SHDesktopApp() {
           studentName={L.studentName}
           grade={L.grade}
           lang={lang}
-          onLogout={window.SHUser?.logout}
+          onLogout={onLogout}
         />
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {renderRoute()}

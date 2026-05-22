@@ -83,8 +83,8 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
               fontSize: 40, flex: "0 0 80px",
               overflow: "hidden",
             }}>
-              {it.image
-                ? <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              {(it.image || it.asset?.url || it.asset?.dataUrl)
+                ? <img src={it.image || it.asset?.url || it.asset?.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 : it.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -149,8 +149,8 @@ function SHLostDetailScreen({ t, lang, accent, itemId, onBack, showToast }) {
           display: "flex", alignItems: "center", justifyContent: "center",
           position: "relative", overflow: "hidden",
         }}>
-          {it.image
-            ? <img src={it.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {(it.image || it.asset?.url || it.asset?.dataUrl)
+            ? <img src={it.image || it.asset?.url || it.asset?.dataUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             : <div style={{ fontSize: 140 }}>{it.icon}</div>}
           <div style={{
             position: "absolute", top: 14, left: 14,
@@ -246,18 +246,11 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCateg
     fileRef.current?.click();
   };
 
-  const onFileChange = (e) => {
+  const onFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhoto({
-        name: file.name,
-        type: file.type || "image/png",
-        dataUrl: String(reader.result || ""),
-      });
-    };
-    reader.readAsDataURL(file);
+    const [asset] = await (window.SHReadFiles?.([file]) || []);
+    if (asset) setPhoto(asset);
   };
 
   const submit = () => {
@@ -271,11 +264,12 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCateg
           id: `l-${Date.now()}`,
           category,
           icon: "📦",
-          image: photo?.dataUrl || null,
+          image: photo?.dataUrl || photo?.url || null,
           color: "#EEF2F6",
           iconColor: "#4E5968",
           title_ko: feature.trim(),
           title_en: feature.trim(),
+          asset: photo || null,
           place_ko: where.trim(),
           place_en: where.trim(),
           date: when.trim(),
@@ -324,7 +318,7 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCateg
           }}>
             {photo ? (
               <>
-                <img src={photo.dataUrl} alt="preview" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 12, objectFit: "cover" }} />
+                <img src={photo.dataUrl || photo.url} alt="preview" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 12, objectFit: "cover" }} />
                 <div style={{
                   position: "absolute", bottom: 12, right: 12,
                   padding: "6px 10px", borderRadius: 999, background: "rgba(255,255,255,0.92)",

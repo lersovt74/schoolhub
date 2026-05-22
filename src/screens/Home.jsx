@@ -139,7 +139,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
             </div>
             <IconChevRight color="#B0B8C1" style={{ marginLeft: "auto" }}/>
           </div>
-          <div style={{ display: "flex", gap: 8, padding: "8px 16px 16px", overflowX: "auto" }}>
+          <div className="sh-mobile-scroll" style={{ display: "flex", gap: 8, padding: "8px 16px 16px", overflowX: "auto" }}>
             {tt.map((c) => (
               <div key={c.period} style={{
                 flex: "0 0 76px",
@@ -435,7 +435,7 @@ function SHNoticeDetailScreen({ t, lang, accent, onBack, noticeId }) {
           {imageAssets.length > 0 && (
             <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
               {imageAssets.map((asset) => (
-                <img key={asset.id} src={asset.dataUrl} alt={asset.name} style={{ width: "100%", borderRadius: 14, border: "1px solid #E5E8EB" }} />
+                <img key={asset.id} src={asset.dataUrl || asset.url} alt={asset.name} style={{ width: "100%", borderRadius: 14, border: "1px solid #E5E8EB" }} />
               ))}
             </div>
           )}

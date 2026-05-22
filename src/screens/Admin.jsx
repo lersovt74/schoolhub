@@ -14,7 +14,7 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
   const reportStatusLabel = (status) => ({
-    received: "접수 완료",
+    received: "접수완료",
     review: "검토 중",
     resolved: "처리 완료",
   }[status] || status);
@@ -184,7 +184,14 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
             {(data.notices || []).slice(0, 10).map((n) => (
               <SHCard key={n.id} radius={12} pad={12} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#191F28" }}>{n.title}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#191F28" }}>{n.title}</div>
+                  {Array.isArray(n.attachments) && n.attachments.length > 0 && (
+                    <div style={{ marginTop: 4, fontSize: 11, color: "#6B7683" }}>
+                      첨부 {n.attachments.length}개 · {n.attachments.map((asset) => asset.name).join(", ")}
+                    </div>
+                  )}
+                </div>
                 <button onClick={() => removeItem("notices", n.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </SHCard>
             ))}

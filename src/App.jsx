@@ -198,12 +198,20 @@ function SHMobileApp({ onLogout }) {
 function SHTabBar({ tabs, active, accent, onChange }) {
   return (
     <div style={{
-      flex: "0 0 auto", minHeight: 74, paddingBottom: "max(10px, env(safe-area-inset-bottom))",
+      minHeight: 74, paddingBottom: "max(10px, env(safe-area-inset-bottom))",
       background: "rgba(255,255,255,0.96)",
       backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",
       borderTop: "1px solid #F2F4F6",
-      display: "flex", position: "relative",
+      display: "flex",
+      position: "fixed",
+      left: 0,
+      right: 0,
+      bottom: 0,
+      maxWidth: 520,
+      margin: "0 auto",
+      zIndex: 80,
+      boxShadow: "0 -8px 24px rgba(0,19,43,0.04)",
     }}>
       {tabs.map((t) => {
         const on = t.id === active;

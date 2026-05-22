@@ -30,47 +30,88 @@ function shEntityKey(item) {
   return String(item.id || item.code || item.key || item.slug || "").trim();
 }
 
-function shMergeValue(existing, incoming) {
+function shMergeDeletedMaps(existing, incoming) {
+  const next = shIsObject(existing) ? shClone(existing) : {};
+  if (!shIsObject(incoming)) return next;
+  for (const [bucket, values] of Object.entries(incoming)) {
+    if (!shIsObject(values)) continue;
+    next[bucket] = { ...(next[bucket] || {}), ...values };
+  }
+  return next;
+}
+
+function shDeletedFor(deletedMap, fieldName) {
+  if (!fieldName || !shIsObject(deletedMap)) return {};
+  return shIsObject(deletedMap[fieldName]) ? deletedMap[fieldName] : {};
+}
+
+function shComputeDeletedMap(before, after) {
+  const deleted = {};
+  if (!shIsObject(before) || !shIsObject(after)) return deleted;
+  for (const key of Object.keys(before)) {
+    if (!Array.isArray(before[key]) || !Array.isArray(after[key])) continue;
+    const beforeIds = before[key].map(shEntityKey).filter(Boolean);
+    if (beforeIds.length === 0) continue;
+    const afterIds = new Set(after[key].map(shEntityKey).filter(Boolean));
+    beforeIds.forEach((id) => {
+      if (!afterIds.has(id)) {
+        if (!deleted[key]) deleted[key] = {};
+        deleted[key][id] = Date.now();
+      }
+    });
+  }
+  return deleted;
+}
+
+function shMergeValue(existing, incoming, fieldName = "", deletedMap = {}) {
   if (incoming == null) return existing;
   if (existing == null) return incoming;
-  if (Array.isArray(existing) || Array.isArray(incoming)) return shMergeArray(existing, incoming);
+  if (Array.isArray(existing) || Array.isArray(incoming)) return shMergeArray(existing, incoming, fieldName, deletedMap);
   if (shIsObject(existing) && shIsObject(incoming)) {
     const next = { ...existing };
     for (const key of Object.keys(incoming)) {
-      next[key] = shMergeValue(existing[key], incoming[key]);
+      next[key] = shMergeValue(existing[key], incoming[key], key, deletedMap);
     }
     return next;
   }
   return incoming;
 }
 
-function shMergeArray(existing, incoming) {
+function shMergeArray(existing, incoming, fieldName = "", deletedMap = {}) {
   if (!Array.isArray(existing)) return Array.isArray(incoming) ? incoming : existing;
   if (!Array.isArray(incoming)) return existing;
+  const deleted = shDeletedFor(deletedMap, fieldName);
+  const isDeleted = (item) => {
+    const key = shEntityKey(item);
+    return key && deleted[key];
+  };
   const canKey =
     existing.length > 0 &&
     incoming.length > 0 &&
     existing.every((item) => !!shEntityKey(item)) &&
     incoming.every((item) => !!shEntityKey(item));
-  if (!canKey) return incoming;
+  if (!canKey) return incoming.filter((item) => !isDeleted(item));
   const map = new Map();
-  existing.forEach((item) => map.set(shEntityKey(item), item));
+  existing.forEach((item) => {
+    if (!isDeleted(item)) map.set(shEntityKey(item), item);
+  });
   incoming.forEach((item) => {
+    if (isDeleted(item)) return;
     const key = shEntityKey(item);
     const prev = map.get(key);
-    map.set(key, shMergeValue(prev, item));
+    map.set(key, shMergeValue(prev, item, fieldName, deletedMap));
   });
   const out = [];
   const seen = new Set();
   incoming.forEach((item) => {
     const key = shEntityKey(item);
-    if (seen.has(key)) return;
+    if (seen.has(key) || deleted[key]) return;
     out.push(map.get(key));
     seen.add(key);
   });
   existing.forEach((item) => {
     const key = shEntityKey(item);
-    if (seen.has(key)) return;
+    if (seen.has(key) || deleted[key]) return;
     out.push(map.get(key));
     seen.add(key);
   });
@@ -80,13 +121,22 @@ function shMergeArray(existing, incoming) {
 function shMergeState(existing, incoming) {
   if (!shIsObject(existing)) return incoming;
   if (!shIsObject(incoming)) return existing;
-  return shMergeValue(existing, incoming);
+  const deletedMap = shMergeDeletedMaps(existing.__deleted, incoming.__deleted);
+  const merged = shMergeValue(existing, incoming, "", deletedMap);
+  if (Object.keys(deletedMap).length > 0) merged.__deleted = deletedMap;
+  return merged;
 }
 
 function shBackendCfg() {
   const cfg = window.SH_BACKEND_CONFIG || {};
   if (!cfg.enabled || !cfg.endpoint) return null;
   return cfg;
+}
+
+function shAssetEndpoint() {
+  const cfg = shBackendCfg();
+  if (!cfg?.endpoint) return null;
+  return cfg.endpoint.replace(/\/state(?:\?.*)?$/, "/assets");
 }
 
 function shApplyDataLocal(next, options = {}) {
@@ -181,8 +231,10 @@ function shGetData() {
 }
 
 function shUpdateData(updater) {
-  const draft = shClone(shGetData());
+  const before = shClone(shGetData());
+  const draft = shClone(before);
   updater(draft);
+  draft.__deleted = shMergeDeletedMaps(draft.__deleted, shComputeDeletedMap(before, draft));
   draft.__updatedAt = Date.now();
   shSaveData(draft);
   return draft;
@@ -234,21 +286,82 @@ function shInferExtension(type = "", name = "") {
   return map[type] || "bin";
 }
 
-function shReadFileAsset(file) {
+function shReadDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
-    reader.onload = () =>
-      resolve({
-        id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        name: file.name,
-        type: file.type || "application/octet-stream",
-        size: Number(file.size || 0),
-        ext: shInferExtension(file.type, file.name),
-        dataUrl: String(reader.result || ""),
-      });
+    reader.onload = () => resolve(String(reader.result || ""));
     reader.readAsDataURL(file);
   });
+}
+
+function shCompressImageFile(file) {
+  if (!String(file.type || "").startsWith("image/") || file.type === "image/gif") return shReadDataUrl(file);
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onerror = () => resolve(null);
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => resolve(String(reader.result || ""));
+      img.onload = () => {
+        const maxSide = 1600;
+        const ratio = Math.min(1, maxSide / Math.max(img.width || 1, img.height || 1));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * ratio));
+        canvas.height = Math.max(1, Math.round(img.height * ratio));
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function shUploadAsset(asset) {
+  const endpoint = shAssetEndpoint();
+  if (!endpoint || !asset?.dataUrl) return null;
+  try {
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: asset.name,
+        type: asset.type,
+        size: asset.size,
+        dataUrl: asset.dataUrl,
+      }),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.asset || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function shReadFileAsset(file) {
+  const originalType = file.type || "application/octet-stream";
+  const dataUrl = String(originalType).startsWith("image/")
+    ? await shCompressImageFile(file)
+    : await shReadDataUrl(file);
+  const type = dataUrl?.startsWith("data:image/jpeg") ? "image/jpeg" : originalType;
+  const asset = {
+    id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name: file.name,
+    type,
+    size: Number(file.size || 0),
+    ext: shInferExtension(type, file.name),
+    dataUrl,
+  };
+  const uploaded = await shUploadAsset(asset);
+  if (!uploaded) return asset;
+  return {
+    ...asset,
+    ...uploaded,
+    dataUrl: undefined,
+  };
 }
 
 async function shReadFiles(fileList) {
@@ -257,9 +370,9 @@ async function shReadFiles(fileList) {
 }
 
 function shDownloadAsset(asset, fallbackName = "download") {
-  if (!asset?.dataUrl) return false;
+  if (!asset?.dataUrl && !asset?.url) return false;
   const link = document.createElement("a");
-  link.href = asset.dataUrl;
+  link.href = asset.dataUrl || asset.url;
   link.download = asset.name || `${fallbackName}.${shInferExtension(asset.type, asset.name)}`;
   document.body.appendChild(link);
   link.click();

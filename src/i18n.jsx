@@ -117,7 +117,7 @@ const SH_STRINGS = {
     anon_code_copy: "코드 복사",
     anon_code_save: "코드는 다시 볼 수 없으니 캡처해 두세요",
     anon_status_title: "처리 상태",
-    anon_status_received: "접수 완료",
+    anon_status_received: "접수완료",
     anon_status_review: "검토 중",
     anon_status_resolved: "처리 완료",
     anon_check_input_title: "신고 코드를 입력해 주세요",
