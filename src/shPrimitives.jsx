@@ -188,7 +188,7 @@ function SHInput({ label, hint, value, onChange, placeholder, multiline, suffix,
             style={{
               flex: 1, minHeight: 76, minWidth: 0, border: 0, background: "transparent",
               resize: "none", outline: "none", fontFamily: "inherit",
-              fontSize: 15, color: "#191F28", lineHeight: 1.5,
+              fontSize: 16, color: "#191F28", lineHeight: 1.5,
             }}
           />
         ) : (
@@ -198,7 +198,7 @@ function SHInput({ label, hint, value, onChange, placeholder, multiline, suffix,
             style={{
               flex: 1, minWidth: 0, border: 0, background: "transparent",
               outline: "none", fontFamily: "inherit",
-              fontSize: 15, fontWeight: 600, color: "#191F28", letterSpacing: "-0.012em",
+              fontSize: 16, fontWeight: 600, color: "#191F28", letterSpacing: "-0.012em",
             }}
           />
         )}

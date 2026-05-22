@@ -108,8 +108,21 @@ function SHMobileApp({ onLogout }) {
         display: "flex",
         flexDirection: "column",
         background: "#F2F4F6",
+        overflow: "hidden",
       }}>
-        <div ref={scrollRef} className="sh-mobile-scroll" style={{ flex: 1, overflowY: "auto", position: "relative", background: "#F2F4F6", overflowX: "hidden" }}>
+        <div
+          ref={scrollRef}
+          className="sh-mobile-scroll"
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            position: "relative",
+            background: "#F2F4F6",
+            overflowX: "hidden",
+            WebkitOverflowScrolling: "touch",
+            overscrollBehaviorY: "contain",
+          }}
+        >
           {screen}
         </div>
         {isRoot && (

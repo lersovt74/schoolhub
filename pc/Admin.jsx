@@ -13,6 +13,16 @@ function PCAdmin({ L, lang, accent }) {
   const noticeFileRef = React.useRef(null);
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
+  const reportStatusLabel = (status) => ({
+    received: "접수 완료",
+    review: "검토 중",
+    resolved: "처리 완료",
+  }[status] || status);
+  const lostStatusLabel = (status) => ({
+    open: "찾는 중",
+    keep: "보관 중",
+    done: "주인 만남",
+  }[status] || status);
 
   const removeItem = (key, id) => updateData((draft) => {
     draft[key] = (draft[key] || []).filter((x) => x.id !== id);
@@ -187,7 +197,7 @@ function PCAdmin({ L, lang, accent }) {
                 <div style={{ fontWeight: 700 }}>{it.title_ko}</div>
                 <div style={{ fontSize: 12, color: "#6B7683", marginTop: 2 }}>{it.category === "found" ? "찾아가세요" : "찾아주세요"} · {it.place_ko}</div>
               </div>
-              <Chip active>{it.status}</Chip>
+              <Chip active>{lostStatusLabel(it.status)}</Chip>
               <button onClick={() => cycleStatus("lostItems", it.id, ["open", "keep", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
             </div>
           ))}
@@ -212,7 +222,7 @@ function PCAdmin({ L, lang, accent }) {
                 <button onClick={() => saveReportNote(r.id)} style={{ marginTop: 8, border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 800 }}>메모 저장</button>
               </div>
               <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                <Chip active>{r.status}</Chip>
+                <Chip active>{reportStatusLabel(r.status)}</Chip>
                 <button onClick={() => cycleStatus("reports", r.id, ["received", "review", "resolved"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
               </div>
             </div>

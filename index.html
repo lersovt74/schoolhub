@@ -10,9 +10,11 @@
     margin: 0; padding: 0;
     background: #F2F4F6;
     min-height: 100dvh; overflow: hidden;
+    height: 100%;
     font-family: var(--tds-font-sans);
+    -webkit-text-size-adjust: 100%;
   }
-  .stage { position: fixed; inset: 0; }
+  .stage { position: fixed; inset: 0; overflow: hidden; }
   .device-fit { transform-origin: center center; }
   .sh-mobile-scroll {
     -ms-overflow-style: none;

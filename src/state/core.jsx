@@ -13,12 +13,74 @@ function shClone(v) {
   return JSON.parse(JSON.stringify(v));
 }
 
+function shIsObject(v) {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
 function shSafeParse(raw, fallback) {
   try {
     return JSON.parse(raw);
   } catch (_) {
     return fallback;
   }
+}
+
+function shEntityKey(item) {
+  if (!shIsObject(item)) return "";
+  return String(item.id || item.code || item.key || item.slug || "").trim();
+}
+
+function shMergeValue(existing, incoming) {
+  if (incoming == null) return existing;
+  if (existing == null) return incoming;
+  if (Array.isArray(existing) || Array.isArray(incoming)) return shMergeArray(existing, incoming);
+  if (shIsObject(existing) && shIsObject(incoming)) {
+    const next = { ...existing };
+    for (const key of Object.keys(incoming)) {
+      next[key] = shMergeValue(existing[key], incoming[key]);
+    }
+    return next;
+  }
+  return incoming;
+}
+
+function shMergeArray(existing, incoming) {
+  if (!Array.isArray(existing)) return Array.isArray(incoming) ? incoming : existing;
+  if (!Array.isArray(incoming)) return existing;
+  const canKey =
+    existing.length > 0 &&
+    incoming.length > 0 &&
+    existing.every((item) => !!shEntityKey(item)) &&
+    incoming.every((item) => !!shEntityKey(item));
+  if (!canKey) return incoming;
+  const map = new Map();
+  existing.forEach((item) => map.set(shEntityKey(item), item));
+  incoming.forEach((item) => {
+    const key = shEntityKey(item);
+    const prev = map.get(key);
+    map.set(key, shMergeValue(prev, item));
+  });
+  const out = [];
+  const seen = new Set();
+  incoming.forEach((item) => {
+    const key = shEntityKey(item);
+    if (seen.has(key)) return;
+    out.push(map.get(key));
+    seen.add(key);
+  });
+  existing.forEach((item) => {
+    const key = shEntityKey(item);
+    if (seen.has(key)) return;
+    out.push(map.get(key));
+    seen.add(key);
+  });
+  return out;
+}
+
+function shMergeState(existing, incoming) {
+  if (!shIsObject(existing)) return incoming;
+  if (!shIsObject(incoming)) return existing;
+  return shMergeValue(existing, incoming);
 }
 
 function shBackendCfg() {
@@ -100,10 +162,10 @@ function shNormalizeUser(user) {
 }
 
 function shSaveData(next) {
-  const copy = shApplyDataLocal(next);
+  const copy = shApplyDataLocal({ ...(next || {}), __updatedAt: Date.now() });
   shPushRemoteState(copy).then((remote) => {
     if (!remote) return;
-    shApplyDataLocal(remote);
+    shApplyDataLocal(shMergeState(shGetData(), remote));
   });
 }
 
@@ -121,6 +183,7 @@ function shGetData() {
 function shUpdateData(updater) {
   const draft = shClone(shGetData());
   updater(draft);
+  draft.__updatedAt = Date.now();
   shSaveData(draft);
   return draft;
 }
@@ -355,7 +418,7 @@ function useSHData() {
     const syncFromRemote = async () => {
       const remote = await shFetchRemoteState();
       if (!alive || !remote) return;
-      shApplyDataLocal(remote);
+      shApplyDataLocal(shMergeState(shGetData(), remote));
     };
     syncFromRemote();
     const interval = window.setInterval(syncFromRemote, 10000);

@@ -1,6 +1,7 @@
 // UnifiedApp.jsx — single entry for mobile/desktop + passwordless login.
 
 function SHLoginGate({ onSubmit }) {
+  const narrow = typeof window !== "undefined" ? window.innerWidth < 420 : false;
   const [grade, setGrade] = React.useState("3");
   const [className, setClassName] = React.useState("5");
   const [number, setNumber] = React.useState("12");
@@ -21,21 +22,23 @@ function SHLoginGate({ onSubmit }) {
   return (
     <div style={{
       width: "100%", minHeight: "100dvh", background: "#F2F4F6",
-      display: "flex", alignItems: "flex-start", justifyContent: "center",
-      padding: "max(32px, calc(env(safe-area-inset-top) + 28px)) 16px max(24px, env(safe-area-inset-bottom))",
+      display: "flex", alignItems: narrow ? "center" : "flex-start", justifyContent: "center",
+      padding: narrow
+        ? "16px 14px max(18px, env(safe-area-inset-bottom))"
+        : "max(32px, calc(env(safe-area-inset-top) + 28px)) 16px max(24px, env(safe-area-inset-bottom))",
       boxSizing: "border-box",
     }}>
       <div style={{
-        width: "100%", maxWidth: 480, background: "#fff", borderRadius: 24,
-        padding: "clamp(20px, 5vw, 28px)",
+        width: "100%", maxWidth: narrow ? 420 : 480, background: "#fff", borderRadius: 24,
+        padding: narrow ? "18px" : "clamp(20px, 5vw, 28px)",
         boxShadow: "0 10px 30px rgba(2,32,71,0.08)",
       }}>
-        <div style={{ fontSize: "clamp(28px, 7vw, 40px)", fontWeight: 800, color: "#191F28", letterSpacing: "-0.03em", lineHeight: 1.1 }}>SchoolHub 로그인</div>
-        <div style={{ marginTop: 8, fontSize: "clamp(14px, 3.8vw, 17px)", color: "#6B7683", lineHeight: 1.5 }}>
+        <div style={{ fontSize: narrow ? 30 : "clamp(28px, 7vw, 40px)", fontWeight: 800, color: "#191F28", letterSpacing: "-0.03em", lineHeight: 1.1 }}>SchoolHub 로그인</div>
+        <div style={{ marginTop: 8, fontSize: narrow ? 15 : "clamp(14px, 3.8vw, 17px)", color: "#6B7683", lineHeight: 1.5 }}>
           학년, 반, 번호, 이름만 입력하면 바로 들어가요.
         </div>
 
-        <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(92px, 1fr))", gap: 10 }}>
+        <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(84px, 1fr))", gap: 10 }}>
           <SHInput label="학년" value={grade} onChange={setGrade} placeholder="3" type="number"/>
           <SHInput label="반" value={className} onChange={setClassName} placeholder="5" type="number"/>
           <SHInput label="번호" value={number} onChange={setNumber} placeholder="12" type="number"/>
