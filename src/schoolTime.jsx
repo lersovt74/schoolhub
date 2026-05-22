@@ -18,6 +18,45 @@ function isSevenPeriodDay(day) {
   return day === 2 || day === 4;
 }
 
+// Sat(6) and Sun(0) → show Monday(1) schedule
+function getEffectiveWeekday(day) {
+  if (day === 0 || day === 6) return 1;
+  return day;
+}
+
+// Map Korean subject names to display colors
+const SH_SUBJECT_COLORS = {
+  "수학": "#3182F6", "영어": "#7A5AE0", "체육": "#FF9000",
+  "국어": "#F04452", "과학": "#007B33", "음악": "#FFB400",
+  "기술가정": "#1B64DA", "기가": "#1B64DA", "사회": "#6B7683",
+  "미술": "#FF6D6D", "도덕": "#00A3A3", "창체": "#8B5E3C",
+  "동아리": "#9B59B6", "자습": "#888",
+};
+
+const SH_PERIOD_TIMES = [
+  "09:00–09:45", "09:55–10:40", "10:50–11:35",
+  "11:45–12:30", "13:20–14:05", "14:15–15:00", "15:10–15:55",
+];
+
+// Build a today-style timetable from the weekly grid for a given day index (0=월..4=금)
+function buildTodayFromWeekGrid(weekGrid, dayIndex, day) {
+  const maxPeriod = isSevenPeriodDay(day) ? 7 : 6;
+  const rows = [];
+  for (let p = 0; p < maxPeriod; p++) {
+    const subject = (weekGrid[p] || [])[dayIndex] || "";
+    const color = SH_SUBJECT_COLORS[subject] || "#6B7683";
+    rows.push({
+      period: p + 1,
+      subject_ko: subject,
+      subject_en: subject,
+      color,
+      time: SH_PERIOD_TIMES[p] || "",
+      now: false,
+    });
+  }
+  return rows;
+}
+
 function buildDaySchedule(day) {
   const base = [
     { id: "homeroom", type: "homeroom", start: "08:40", end: "08:50" },
@@ -159,9 +198,12 @@ function useSchoolNow() {
 Object.assign(window, {
   SH_WEEKDAY_KO,
   SH_WEEKDAY_EN,
+  SH_SUBJECT_COLORS,
   SHSchoolTime: {
     isSevenPeriodDay,
+    getEffectiveWeekday,
     buildDaySchedule,
+    buildTodayFromWeekGrid,
     getSegmentLabel,
     getSchoolNow,
     getHomeHeadline,

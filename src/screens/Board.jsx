@@ -6,6 +6,7 @@ function SHBoardScreen({ t, lang, accent, push }) {
   const [sort, setSort] = React.useState("hot");  // hot | new
   const [filter, setFilter] = React.useState("all");
   const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : `${window.SH_USER?.grade}-${window.SH_USER?.className}-${window.SH_USER?.number}`;
+  const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
 
   const toggleLike = (id) => {
     updateData((draft) => {
@@ -150,7 +151,7 @@ function SHBoardScreen({ t, lang, accent, push }) {
                 }}
               >
                     {(s.likedBy || []).includes(userCode) ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{s.likes.toLocaleString()}</span>
+                    {isAdmin && <span style={{ fontVariantNumeric: "tabular-nums" }}>{(s.likes || 0).toLocaleString()}</span>}
                   </button>
                   <span style={{ marginLeft: "auto", fontSize: 12, color: "#8B95A1" }}>
                 {lang === "ko" ? `댓글 ${(s.comments || []).length}` : `${(s.comments || []).length} comments`}
@@ -273,6 +274,7 @@ function SHBoardDetailScreen({ t, lang, accent, sid, onBack, showToast }) {
   const s = (data.suggestions || []).find((x) => x.id === sid) || (data.suggestions || [])[0];
   const [commentText, setCommentText] = React.useState("");
   const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : `${window.SH_USER?.grade}-${window.SH_USER?.className}-${window.SH_USER?.number}`;
+  const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
   const comments = s?.comments || [];
   const likes = s?.likes || 0;
   const liked = !!s && (s.likedBy || []).includes(userCode);
@@ -388,7 +390,7 @@ function SHBoardDetailScreen({ t, lang, accent, sid, onBack, showToast }) {
             transition: "all 200ms cubic-bezier(.2,.8,.2,1)",
           }}>
             {liked ? <IcThumbsUp size={18}/> : <IcThumbsUpOutline size={18}/>}
-            <span style={{ fontVariantNumeric: "tabular-nums" }}>{likes.toLocaleString()}</span>
+            {isAdmin && <span style={{ fontVariantNumeric: "tabular-nums" }}>{likes.toLocaleString()}</span>}
           </button>
           <input
             value={commentText}

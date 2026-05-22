@@ -3,12 +3,12 @@
 // upcoming events, quick shortcuts.
 
 function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-  const notices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : d.notices;
+  const { data: d } = useSHData();
+  const notices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : (d.notices || []);
   const nowInfo = useSchoolNow();
   const timeUtil = window.SHSchoolTime;
-  const todayMeal = d.meal.today;
-  const tt = timeUtil ? timeUtil.getTodayTimetableRows(d.timetable.today, nowInfo) : d.timetable.today;
+  const todayMeal = d.meal?.today || { items: [], kcal: 0 };
+  const tt = timeUtil ? timeUtil.getTodayTimetableRows(d.timetable?.today || [], nowInfo) : (d.timetable?.today || []);
   const nowClass = tt.find((c) => c.now);
   const currentLabel = timeUtil ? timeUtil.getSegmentLabel(nowInfo.current, lang) : (lang === "ko" ? "시간표 확인" : "Check timetable");
   const dateLine = nowInfo ? `${lang === "ko" ? nowInfo.dateKo : nowInfo.dateEn} · ${currentLabel}` : "";
@@ -36,6 +36,21 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
       };
     });
 
+  // D-Day computation
+  const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+  const ddays = (d.ddays || []).map((dd) => {
+    if (!dd.date) return null;
+    const target = new Date(dd.date); target.setHours(0, 0, 0, 0);
+    const diff = Math.round((target - todayMidnight) / 86400000);
+    return { ...dd, diff };
+  }).filter(Boolean).sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff));
+
+  // Quote
+  const quote = d.quote || { text: "청춘! 그것은 행운이다.", author: "" };
+
+  // Lost items for home: only "찾아가세요(found)" that are still active
+  const lostItemsFound = (d.lostItems || []).filter((it) => it.category === "found" && it.status !== "done").slice(0, 2);
+
   return (
     <div style={{
       background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(220px + env(safe-area-inset-bottom))", paddingTop: 47,
@@ -58,7 +73,40 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
           {t.studentName}{lang === "ko" ? "님, " : ", "}<br/>
           {headline}
         </div>
+        {quote.text && (
+          <div style={{ marginTop: 10, fontSize: 13, color: "#6B7683", fontStyle: "italic", lineHeight: 1.55, letterSpacing: "-0.012em" }}>
+            "{quote.text}"
+            {quote.author && (
+              <span style={{ display: "block", marginTop: 2, fontSize: 11, fontStyle: "normal", color: "#8B95A1" }}>— {quote.author}</span>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* D-Day strip */}
+      {ddays.length > 0 && (
+        <div style={{ padding: "0 16px 12px" }}>
+          <div className="sh-mobile-scroll" style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+            {ddays.map((dd) => (
+              <div key={dd.id} style={{
+                flex: "0 0 auto", minWidth: 100,
+                background: "#fff", borderRadius: 14, padding: "12px 16px",
+                display: "flex", flexDirection: "column", gap: 3,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7683" }}>{dd.label}</div>
+                <div style={{
+                  fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em",
+                  color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
+                }}>
+                  {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
+                </div>
+                <div style={{ fontSize: 10, color: "#8B95A1" }}>{dd.date}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Hero: today's lunch — rich card */}
       <div style={{ padding: "0 16px" }}>
@@ -129,7 +177,6 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
               {nowClass ? (
                 <div style={{ fontSize: 17, fontWeight: 700, color: "#191F28", letterSpacing: "-0.012em", marginTop: 2 }}>
                   {lang === "ko" ? `지금 ${nowClass.subject_ko}` : `Now: ${nowClass.subject_en}`}
-                  <span style={{ fontSize: 13, color: "#6B7683", fontWeight: 600, marginLeft: 8 }}>{nowClass.room}</span>
                 </div>
               ) : (
                 <div style={{ fontSize: 15, fontWeight: 700, color: "#191F28", letterSpacing: "-0.012em", marginTop: 2 }}>
@@ -249,17 +296,22 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
         </SHCard>
       </div>
 
-      {/* Lost & Found recent */}
+      {/* Lost & Found recent — only "찾아가세요(found)" items */}
       <div style={{ padding: "20px 16px 0" }}>
         <SHSection title={t.home_lost_recent} action={lang === "ko" ? "전체보기" : "See all"} onAction={() => onGo("lost")} />
         <SHCard radius={20} pad={0} style={{ overflow: "hidden" }}>
-          {d.lostItems.slice(0, 2).map((it, i) => (
+          {lostItemsFound.length === 0 && (
+            <div style={{ padding: "20px 16px", fontSize: 13, color: "#8B95A1" }}>
+              {lang === "ko" ? "보관 중인 분실물이 없어요." : "No held items right now."}
+            </div>
+          )}
+          {lostItemsFound.map((it, i) => (
             <div key={it.id} onClick={() => onGo("lost", { item: it.id })}
               className="tds-press"
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px",
-                borderBottom: i === 0 ? "1px solid #F2F4F6" : "none",
+                borderBottom: i < lostItemsFound.length - 1 ? "1px solid #F2F4F6" : "none",
                 cursor: "pointer", background: "#fff",
               }}>
               <SHTile bg={it.color} color={it.iconColor} size={48} radius={12}>

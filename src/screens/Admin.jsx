@@ -11,9 +11,21 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
   const [boardReplies, setBoardReplies] = React.useState({});
   const [reportNotes, setReportNotes] = React.useState({});
   const [uploading, setUploading] = React.useState(false);
+  const [statusDropdown, setStatusDropdown] = React.useState(null); // { key, id }
+  const [quoteText, setQuoteText] = React.useState("");
+  const [quoteAuthor, setQuoteAuthor] = React.useState("");
+  const [ddayLabel, setDdayLabel] = React.useState("");
+  const [ddayDate, setDdayDate] = React.useState("");
   const noticeFileRef = React.useRef(null);
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
+
+  // Sync quote fields when data loads or changes
+  React.useEffect(() => {
+    setQuoteText(data.quote?.text || "청춘! 그것은 행운이다.");
+    setQuoteAuthor(data.quote?.author || "");
+  }, [data.quote?.text, data.quote?.author]);
+
   const reportStatusLabel = (status) => ({
     received: "접수완료",
     review: "검토 중",
@@ -23,6 +35,11 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
     open: "찾는 중",
     keep: "보관 중",
     done: "주인 만남",
+  }[status] || status);
+  const boardStatusLabel = (status) => ({
+    open: "검토 전",
+    review: "검토 중",
+    done: "처리 완료",
   }[status] || status);
 
   const sendNotice = () => {
@@ -51,13 +68,10 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
     setNoticeAssets([]);
   };
 
-  const cycleStatus = (key, id, order) => {
+  const setStatus = (key, id, status) => {
     updateData((draft) => {
-      const arr = draft[key] || [];
-      const item = arr.find((x) => x.id === id);
-      if (!item) return;
-      const i = order.indexOf(item.status);
-      item.status = order[(i + 1) % order.length];
+      const item = (draft[key] || []).find((x) => x.id === id);
+      if (item) item.status = status;
     });
   };
 
@@ -88,6 +102,24 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
       if (item.status === "resolved") item.resolutionNote = note;
       else item.adminNote = note;
     });
+  };
+
+  const saveQuote = () => {
+    updateData((draft) => {
+      if (!draft.quote) draft.quote = {};
+      draft.quote.text = quoteText.trim();
+      draft.quote.author = quoteAuthor.trim();
+    });
+  };
+
+  const addDday = () => {
+    if (!ddayLabel.trim() || !ddayDate.trim()) return;
+    updateData((draft) => {
+      if (!Array.isArray(draft.ddays)) draft.ddays = [];
+      draft.ddays.push({ id: `d-${Date.now()}`, label: ddayLabel.trim(), date: ddayDate.trim() });
+    });
+    setDdayLabel("");
+    setDdayDate("");
   };
 
   const addFilesToState = async (files, kind) => {
@@ -131,8 +163,44 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
     }
   };
 
+  // Inline status dropdown component
+  const StatusDropdown = ({ dKey, id, current, options }) => {
+    const open = statusDropdown?.key === dKey && statusDropdown?.id === id;
+    return (
+      <div style={{ position: "relative" }}>
+        <button
+          onClick={() => setStatusDropdown(open ? null : { key: dKey, id })}
+          style={{ border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 700 }}
+        >
+          상태변경
+        </button>
+        {open && (
+          <div style={{
+            position: "absolute", right: 0, top: "100%", zIndex: 200,
+            background: "#fff", border: "1px solid #E5E8EB", borderRadius: 12,
+            boxShadow: "0 8px 28px rgba(0,0,0,0.12)", overflow: "hidden", minWidth: 120,
+          }}>
+            {options.map((opt) => (
+              <button key={opt.v} onClick={() => { setStatus(dKey, id, opt.v); setStatusDropdown(null); }}
+                style={{
+                  display: "block", width: "100%", padding: "10px 14px", border: 0,
+                  background: current === opt.v ? `${accent}10` : "transparent",
+                  color: current === opt.v ? accent : "#191F28",
+                  cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  fontWeight: current === opt.v ? 800 : 600, fontSize: 13,
+                }}>
+                {opt.l}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 20 }}>
+    <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 20 }}
+      onClick={() => { if (statusDropdown) setStatusDropdown(null); }}>
       <SHNav title="관리자 페이지" onBack={onBack}/>
 
       <div style={{ padding: "8px 16px 0", display: "flex", gap: 6, overflowX: "auto" }}>
@@ -142,6 +210,7 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
           { v: "reports", l: "신고" },
           { v: "board", l: "게시판" },
           { v: "docs", l: "자료실" },
+          { v: "settings", l: "설정" },
         ].map((x) => <Chip key={x.v} active={tab === x.v} onClick={() => setTab(x.v)}>{x.l}</Chip>)}
       </div>
 
@@ -209,12 +278,25 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
 
       {tab === "lost" && (
         <div style={{ padding: "12px 16px 0", display: "flex", flexDirection: "column", gap: 8 }}>
+          {(data.lostItems || []).length === 0 && <SHCard radius={12} pad={12}>분실물 등록 내역이 없습니다.</SHCard>}
           {(data.lostItems || []).map((it) => (
             <SHCard key={it.id} radius={12} pad={12}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>{it.title_ko}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title_ko}</div>
+                  <div style={{ fontSize: 11, color: "#6B7683", marginTop: 2 }}>
+                    {it.category === "found" ? "찾아가세요" : "찾아주세요"} · {it.place_ko}
+                  </div>
+                </div>
                 <Chip active>{lostStatusLabel(it.status)}</Chip>
-                <button onClick={() => cycleStatus("lostItems", it.id, ["open", "keep", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StatusDropdown dKey="lostItems" id={it.id} current={it.status} options={[
+                    { v: "open", l: "찾는 중" },
+                    { v: "keep", l: "보관 중" },
+                    { v: "done", l: "주인 만남" },
+                  ]}/>
+                </div>
+                <button onClick={() => removeItem("lostItems", it.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
             </SHCard>
           ))}
@@ -240,7 +322,14 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
               </div>
               <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
                 <Chip active>{reportStatusLabel(r.status)}</Chip>
-                <button onClick={() => cycleStatus("reports", r.id, ["received", "review", "resolved"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StatusDropdown dKey="reports" id={r.id} current={r.status} options={[
+                    { v: "received", l: "접수완료" },
+                    { v: "review", l: "검토 중" },
+                    { v: "resolved", l: "처리 완료" },
+                  ]}/>
+                </div>
+                <button onClick={() => removeItem("reports", r.id)} style={{ marginLeft: "auto", border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
             </SHCard>
           ))}
@@ -252,8 +341,20 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
           {(data.suggestions || []).map((s) => (
             <SHCard key={s.id} radius={12} pad={12}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 700 }}>{s.title_ko}</div>
-                <button onClick={() => cycleStatus("suggestions", s.id, ["open", "review", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title_ko}</div>
+                  <div style={{ fontSize: 11, color: "#6B7683", marginTop: 2 }}>
+                    👍 {s.likes || 0} · 댓글 {(s.comments || []).length}
+                  </div>
+                </div>
+                <Chip active>{boardStatusLabel(s.status)}</Chip>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <StatusDropdown dKey="suggestions" id={s.id} current={s.status} options={[
+                    { v: "open", l: "검토 전" },
+                    { v: "review", l: "검토 중" },
+                    { v: "done", l: "처리 완료" },
+                  ]}/>
+                </div>
                 <button onClick={() => removeItem("suggestions", s.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
               <div style={{ marginTop: 8 }}>
@@ -305,6 +406,52 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
               ))}
             </SHCard>
           </div>
+        </div>
+      )}
+
+      {tab === "settings" && (
+        <div style={{ padding: "12px 16px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+          {/* Quote / Motto editor */}
+          <SHCard radius={16} pad={14}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#191F28", marginBottom: 10 }}>명언 / 모토</div>
+            <SHInput label="명언 내용" value={quoteText} onChange={setQuoteText} placeholder="예) 청춘! 그것은 행운이다." />
+            <div style={{ marginTop: 8 }}>
+              <SHInput label="출처 (선택)" value={quoteAuthor} onChange={setQuoteAuthor} placeholder="예) 고은" />
+            </div>
+            <button onClick={saveQuote} style={{
+              marginTop: 10, width: "100%", height: 42, borderRadius: 10, border: 0,
+              background: accent, color: "#fff", fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+            }}>저장</button>
+          </SHCard>
+
+          {/* D-Day manager */}
+          <SHCard radius={16} pad={14}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: "#191F28", marginBottom: 10 }}>디데이 관리</div>
+            {(data.ddays || []).length === 0 && (
+              <div style={{ fontSize: 12, color: "#8B95A1", marginBottom: 10 }}>등록된 디데이가 없습니다.</div>
+            )}
+            {(data.ddays || []).map((dd) => (
+              <div key={dd.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 0", borderBottom: "1px solid #F2F4F6" }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{dd.label}</div>
+                  <div style={{ fontSize: 11, color: "#6B7683" }}>{dd.date}</div>
+                </div>
+                <button onClick={() => removeItem("ddays", dd.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
+              </div>
+            ))}
+            <div style={{ marginTop: 10 }}>
+              <SHInput label="이름 (예: 1학기 중간고사)" value={ddayLabel} onChange={setDdayLabel} placeholder="디데이 이름" />
+              <div style={{ marginTop: 8 }}>
+                <SHInput label="날짜 (YYYY-MM-DD)" value={ddayDate} onChange={setDdayDate} placeholder="예) 2026-06-15" />
+              </div>
+              <button onClick={addDday} style={{
+                marginTop: 8, width: "100%", height: 42, borderRadius: 10, border: 0,
+                background: ddayLabel.trim() && ddayDate.trim() ? accent : "rgba(7,25,76,0.05)",
+                color: ddayLabel.trim() && ddayDate.trim() ? "#fff" : "#B0B8C1",
+                fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+              }}>디데이 추가</button>
+            </div>
+          </SHCard>
         </div>
       )}
     </div>

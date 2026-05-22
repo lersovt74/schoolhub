@@ -10,9 +10,21 @@ function PCAdmin({ L, lang, accent }) {
   const [assets, setAssets] = React.useState([]);
   const [boardReplies, setBoardReplies] = React.useState({});
   const [reportNotes, setReportNotes] = React.useState({});
+  const [statusDropdown, setStatusDropdown] = React.useState(null); // { key, id }
+  const [quoteText, setQuoteText] = React.useState("");
+  const [quoteAuthor, setQuoteAuthor] = React.useState("");
+  const [ddayLabel, setDdayLabel] = React.useState("");
+  const [ddayDate, setDdayDate] = React.useState("");
   const noticeFileRef = React.useRef(null);
   const formFileRef = React.useRef(null);
   const examFileRef = React.useRef(null);
+
+  // Sync quote fields when data loads
+  React.useEffect(() => {
+    setQuoteText(data.quote?.text || "청춘! 그것은 행운이다.");
+    setQuoteAuthor(data.quote?.author || "");
+  }, [data.quote?.text, data.quote?.author]);
+
   const reportStatusLabel = (status) => ({
     received: "접수완료",
     review: "검토 중",
@@ -23,16 +35,19 @@ function PCAdmin({ L, lang, accent }) {
     keep: "보관 중",
     done: "주인 만남",
   }[status] || status);
+  const boardStatusLabel = (status) => ({
+    open: "검토 전",
+    review: "검토 중",
+    done: "처리 완료",
+  }[status] || status);
 
   const removeItem = (key, id) => updateData((draft) => {
     draft[key] = (draft[key] || []).filter((x) => x.id !== id);
   });
 
-  const cycleStatus = (key, id, order) => updateData((draft) => {
+  const setStatus = (key, id, status) => updateData((draft) => {
     const item = (draft[key] || []).find((x) => x.id === id);
-    if (!item) return;
-    const i = order.indexOf(item.status);
-    item.status = order[(i + 1) % order.length];
+    if (item) item.status = status;
   });
 
   const sendNotice = () => {
@@ -95,6 +110,24 @@ function PCAdmin({ L, lang, accent }) {
     });
   };
 
+  const saveQuote = () => {
+    updateData((draft) => {
+      if (!draft.quote) draft.quote = {};
+      draft.quote.text = quoteText.trim();
+      draft.quote.author = quoteAuthor.trim();
+    });
+  };
+
+  const addDday = () => {
+    if (!ddayLabel.trim() || !ddayDate.trim()) return;
+    updateData((draft) => {
+      if (!Array.isArray(draft.ddays)) draft.ddays = [];
+      draft.ddays.push({ id: `d-${Date.now()}`, label: ddayLabel.trim(), date: ddayDate.trim() });
+    });
+    setDdayLabel("");
+    setDdayDate("");
+  };
+
   const addFilesToState = async (files, kind) => {
     const parsed = await window.SHReadFiles?.(files);
     if (!parsed?.length) return;
@@ -129,8 +162,43 @@ function PCAdmin({ L, lang, accent }) {
     });
   };
 
+  // Inline status dropdown
+  const StatusDropdown = ({ dKey, id, current, options }) => {
+    const open = statusDropdown?.key === dKey && statusDropdown?.id === id;
+    return (
+      <div style={{ position: "relative", display: "inline-block" }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); setStatusDropdown(open ? null : { key: dKey, id }); }}
+          style={{ border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 700, padding: "4px 8px" }}>
+          상태변경
+        </button>
+        {open && (
+          <div style={{
+            position: "absolute", right: 0, top: "100%", zIndex: 200,
+            background: "#fff", border: "1px solid #E5E8EB", borderRadius: 12,
+            boxShadow: "0 8px 28px rgba(0,0,0,0.12)", overflow: "hidden", minWidth: 130,
+          }}>
+            {options.map((opt) => (
+              <button key={opt.v} onClick={(e) => { e.stopPropagation(); setStatus(dKey, id, opt.v); setStatusDropdown(null); }}
+                style={{
+                  display: "block", width: "100%", padding: "10px 16px", border: 0,
+                  background: current === opt.v ? `${accent}10` : "transparent",
+                  color: current === opt.v ? accent : "#191F28",
+                  cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                  fontWeight: current === opt.v ? 800 : 600, fontSize: 13,
+                }}>
+                {opt.l}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div style={{ padding: 32, maxWidth: 1200 }}>
+    <div style={{ padding: 32, maxWidth: 1200 }}
+      onClick={() => { if (statusDropdown) setStatusDropdown(null); }}>
       <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
         {[
           { v: "notice", l: "주요공지 전송" },
@@ -138,6 +206,7 @@ function PCAdmin({ L, lang, accent }) {
           { v: "reports", l: "신고 목록" },
           { v: "board", l: "게시판 관리" },
           { v: "docs", l: "자료실 관리" },
+          { v: "settings", l: "설정" },
         ].map((x) => <Chip key={x.v} active={tab === x.v} onClick={() => setTab(x.v)}>{x.l}</Chip>)}
       </div>
 
@@ -196,14 +265,20 @@ function PCAdmin({ L, lang, accent }) {
 
       {tab === "lost" && (
         <PCCard title="분실물 관리" pad={16}>
+          {(data.lostItems || []).length === 0 && <div style={{ color: "#6B7683" }}>분실물 등록 내역이 없습니다.</div>}
           {(data.lostItems || []).map((it) => (
             <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderBottom: "1px solid #F2F4F6" }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700 }}>{it.title_ko}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title_ko}</div>
                 <div style={{ fontSize: 12, color: "#6B7683", marginTop: 2 }}>{it.category === "found" ? "찾아가세요" : "찾아주세요"} · {it.place_ko}</div>
               </div>
               <Chip active>{lostStatusLabel(it.status)}</Chip>
-              <button onClick={() => cycleStatus("lostItems", it.id, ["open", "keep", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+              <StatusDropdown dKey="lostItems" id={it.id} current={it.status} options={[
+                { v: "open", l: "찾는 중" },
+                { v: "keep", l: "보관 중" },
+                { v: "done", l: "주인 만남" },
+              ]}/>
+              <button onClick={() => removeItem("lostItems", it.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
             </div>
           ))}
         </PCCard>
@@ -226,9 +301,14 @@ function PCAdmin({ L, lang, accent }) {
                 />
                 <button onClick={() => saveReportNote(r.id)} style={{ marginTop: 8, border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 800 }}>메모 저장</button>
               </div>
-              <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+              <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
                 <Chip active>{reportStatusLabel(r.status)}</Chip>
-                <button onClick={() => cycleStatus("reports", r.id, ["received", "review", "resolved"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <StatusDropdown dKey="reports" id={r.id} current={r.status} options={[
+                  { v: "received", l: "접수완료" },
+                  { v: "review", l: "검토 중" },
+                  { v: "resolved", l: "처리 완료" },
+                ]}/>
+                <button onClick={() => removeItem("reports", r.id)} style={{ marginLeft: "auto", border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
             </div>
           ))}
@@ -240,11 +320,16 @@ function PCAdmin({ L, lang, accent }) {
           {(data.suggestions || []).map((s) => (
             <div key={s.id} style={{ padding: "12px 0", borderBottom: "1px solid #F2F4F6" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700 }}>{s.title_ko}</div>
-                  <div style={{ fontSize: 12, color: "#6B7683", marginTop: 2 }}>{s.likes || 0} likes · {(s.comments || []).length} comments</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title_ko}</div>
+                  <div style={{ fontSize: 12, color: "#6B7683", marginTop: 2 }}>👍 {s.likes || 0} · 댓글 {(s.comments || []).length}</div>
                 </div>
-                <button onClick={() => cycleStatus("suggestions", s.id, ["open", "review", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <Chip active>{boardStatusLabel(s.status)}</Chip>
+                <StatusDropdown dKey="suggestions" id={s.id} current={s.status} options={[
+                  { v: "open", l: "검토 전" },
+                  { v: "review", l: "검토 중" },
+                  { v: "done", l: "처리 완료" },
+                ]}/>
                 <button onClick={() => removeItem("suggestions", s.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
               <div style={{ marginTop: 10 }}>
@@ -283,6 +368,61 @@ function PCAdmin({ L, lang, accent }) {
             ))}
           </div>
         </PCCard>
+      )}
+
+      {tab === "settings" && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+          {/* Quote / Motto editor */}
+          <PCCard title="명언 / 모토 설정" pad={20}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <PCField label="명언 내용" value={quoteText} onChange={setQuoteText} placeholder="예) 청춘! 그것은 행운이다." />
+              <PCField label="출처 (선택)" value={quoteAuthor} onChange={setQuoteAuthor} placeholder="예) 고은" />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={saveQuote} style={{
+                  height: 42, padding: "0 18px", borderRadius: 10, border: 0,
+                  background: accent, color: "#fff", fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                }}>저장</button>
+              </div>
+            </div>
+            {(data.quote?.text) && (
+              <div style={{ marginTop: 16, padding: "14px 16px", borderRadius: 12, background: "#F8F9FA" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#6B7683", marginBottom: 4 }}>현재 저장된 명언</div>
+                <div style={{ fontSize: 14, fontStyle: "italic", color: "#191F28" }}>"{data.quote.text}"</div>
+                {data.quote.author && <div style={{ fontSize: 12, color: "#8B95A1", marginTop: 4 }}>— {data.quote.author}</div>}
+              </div>
+            )}
+          </PCCard>
+
+          {/* D-Day manager */}
+          <PCCard title="디데이 관리" pad={20}>
+            <div style={{ marginBottom: 12 }}>
+              {(data.ddays || []).length === 0 && (
+                <div style={{ fontSize: 13, color: "#8B95A1", padding: "8px 0" }}>등록된 디데이가 없습니다.</div>
+              )}
+              {(data.ddays || []).map((dd) => (
+                <div key={dd.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #F2F4F6" }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{dd.label}</div>
+                    <div style={{ fontSize: 12, color: "#6B7683" }}>{dd.date}</div>
+                  </div>
+                  <button onClick={() => removeItem("ddays", dd.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "grid", gap: 10 }}>
+              <PCField label="이름 (예: 1학기 중간고사)" value={ddayLabel} onChange={setDdayLabel} placeholder="디데이 이름" />
+              <PCField label="날짜 (YYYY-MM-DD)" value={ddayDate} onChange={setDdayDate} placeholder="예) 2026-06-15" />
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button onClick={addDday} disabled={!ddayLabel.trim() || !ddayDate.trim()} style={{
+                  height: 42, padding: "0 18px", borderRadius: 10, border: 0,
+                  background: ddayLabel.trim() && ddayDate.trim() ? accent : "rgba(7,25,76,0.05)",
+                  color: ddayLabel.trim() && ddayDate.trim() ? "#fff" : "#B0B8C1",
+                  fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+                }}>디데이 추가</button>
+              </div>
+            </div>
+          </PCCard>
+        </div>
       )}
     </div>
   );

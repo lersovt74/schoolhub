@@ -1,12 +1,27 @@
 // Timetable.jsx — Today + weekly grid.
 
 function SHTimetableScreen({ t, lang, accent, onBack }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data: d } = useSHData();
   const nowInfo = useSchoolNow();
   const timeUtil = window.SHSchoolTime;
   const [view, setView] = React.useState("today");
-  const todayRows = timeUtil ? timeUtil.getTodayTimetableRows(d.timetable.today, nowInfo) : d.timetable.today;
-  const todayKo = window.SH_WEEKDAY_KO ? window.SH_WEEKDAY_KO[nowInfo.day] : "목";
+
+  const isWeekend = nowInfo.day === 0 || nowInfo.day === 6;
+  // On weekends display Monday; otherwise use actual day
+  const effectiveDay = timeUtil ? timeUtil.getEffectiveWeekday(nowInfo.day) : (isWeekend ? 1 : nowInfo.day);
+  // Monday = index 0 in week.days array ["월","화","수","목","금"]
+  const effectiveDayIndex = effectiveDay - 1;
+
+  const timetableToday = d.timetable?.today || [];
+  const weekGrid = d.timetable?.week?.grid || [];
+
+  const todayRows = isWeekend
+    ? (timeUtil ? timeUtil.buildTodayFromWeekGrid(weekGrid, effectiveDayIndex, effectiveDay) : timetableToday)
+    : (timeUtil ? timeUtil.getTodayTimetableRows(timetableToday, nowInfo) : timetableToday);
+
+  const actualDayKo = window.SH_WEEKDAY_KO ? window.SH_WEEKDAY_KO[nowInfo.day] : "";
+  // Weekly grid highlight: on weekends, highlight Monday column
+  const gridHighlightKo = isWeekend ? "월" : actualDayKo;
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 28 }}>
@@ -25,7 +40,7 @@ function SHTimetableScreen({ t, lang, accent, onBack }) {
         <SHSeg
           value={view} onChange={setView}
           options={[
-            { value: "today", label: lang === "ko" ? "오늘" : "Today" },
+            { value: "today", label: lang === "ko" ? `오늘(${actualDayKo}요일)` : "Today" },
             { value: "week", label: lang === "ko" ? "주간" : "Week" },
           ]}
         />
@@ -33,6 +48,14 @@ function SHTimetableScreen({ t, lang, accent, onBack }) {
 
       {view === "today" && (
         <div style={{ padding: "16px 16px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+          {isWeekend && (
+            <div style={{
+              padding: "8px 14px", borderRadius: 10,
+              background: `${accent}10`, fontSize: 12, fontWeight: 700, color: accent,
+            }}>
+              {lang === "ko" ? "주말이에요 — 다음 주 월요일 시간표를 보여드려요" : "Weekend — showing Monday's schedule"}
+            </div>
+          )}
           {todayRows.map((c) => (
             <SHCard key={c.period} radius={16} pad={16} style={{
               display: "flex", alignItems: "center", gap: 14,
@@ -61,9 +84,6 @@ function SHTimetableScreen({ t, lang, accent, onBack }) {
                     </SHPill>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: "#6B7683", marginTop: 4 }}>
-                  {c.teacher} · {c.room}
-                </div>
               </div>
               <div style={{ fontSize: 12, fontWeight: 600, color: "#6B7683", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>
                 {c.time}
@@ -79,21 +99,23 @@ function SHTimetableScreen({ t, lang, accent, onBack }) {
             <div style={{ display: "grid", gridTemplateColumns: "30px repeat(5, 1fr)", gap: 4 }}>
               {/* Header */}
               <div/>
-              {d.timetable.week.days.map((day) => (
-              <div key={day} style={{
+              {(d.timetable?.week?.days || ["월","화","수","목","금"]).map((day) => (
+                <div key={day} style={{
                   textAlign: "center", padding: "6px 0",
-                  fontSize: 12, fontWeight: 800, color: day === todayKo ? accent : "#191F28",
+                  fontSize: 12, fontWeight: 800, color: day === gridHighlightKo ? accent : "#191F28",
                 }}>{day}</div>
               ))}
               {/* Rows */}
-              {d.timetable.week.grid.map((row, p) => (
+              {weekGrid.map((row, p) => (
                 <React.Fragment key={p}>
                   <div style={{
                     textAlign: "center", padding: "8px 0",
                     fontSize: 11, fontWeight: 700, color: "#8B95A1",
                   }}>{p + 1}</div>
                   {row.map((sub, di) => {
-                    const isToday = d.timetable.week.days[di] === todayKo;
+                    const isToday = (d.timetable?.week?.days || [])[di] === gridHighlightKo;
+                    // Period 7 (index 6): only show for 화(1) and 목(3)
+                    const showContent = p !== 6 || di === 1 || di === 3;
                     return (
                       <div key={di} style={{
                         padding: "10px 6px", borderRadius: 8,
@@ -101,7 +123,7 @@ function SHTimetableScreen({ t, lang, accent, onBack }) {
                         textAlign: "center", fontSize: 11, fontWeight: 700,
                         color: isToday ? accent : "#4E5968", letterSpacing: "-0.012em",
                         minHeight: 26, display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>{sub}</div>
+                      }}>{showContent ? sub : "—"}</div>
                     );
                   })}
                 </React.Fragment>

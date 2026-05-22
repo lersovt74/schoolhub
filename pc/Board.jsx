@@ -10,6 +10,7 @@ function PCBoard({ L, lang, accent }) {
   const [draftBody, setDraftBody] = React.useState("");
   const [commentText, setCommentText] = React.useState("");
   const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : "";
+  const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
 
   const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
   const sorted = [...suggestions]
@@ -204,7 +205,7 @@ function PCBoard({ L, lang, accent }) {
                     fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
                   }}>
                     {rowLiked ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(s.likes || 0).toLocaleString()}</span>
+                    {isAdmin && <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(s.likes || 0).toLocaleString()}</span>}
                   </button>
                   <span style={{ fontSize: 12, color: "#8B95A1" }}>
                     {lang === "ko" ? `댓글 ${(s.comments || []).length}` : `${(s.comments || []).length} comments`}
@@ -273,7 +274,7 @@ function PCBoard({ L, lang, accent }) {
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}>
                 {liked ? <IcThumbsUp size={16}/> : <IcThumbsUpOutline size={16}/>}
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(current.likes || 0).toLocaleString()}</span>
+                {isAdmin && <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(current.likes || 0).toLocaleString()}</span>}
               </button>
               <span style={{ fontSize: 13, color: "#8B95A1" }}>
                 {lang === "ko" ? `댓글 ${comments.length}개` : `${comments.length} comments`}

@@ -209,6 +209,9 @@ const SH_DATA = {
     { id: "e7", subject: "수학", subjectEn: "Math", grade: 2, year: 2024, term: 1, type: "기말", count: 20 },
     { id: "e8", subject: "영어", subjectEn: "English", grade: 2, year: 2024, term: 1, type: "기말", count: 28 },
   ],
+
+  quote: { text: "청춘! 그것은 행운이다.", author: "" },
+  ddays: [],
 };
 
 window.SH_DATA = SH_DATA;

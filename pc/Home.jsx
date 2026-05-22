@@ -3,17 +3,17 @@
 // lost & found, suggestions teaser. Anonymous prominent footer.
 
 function PCHome({ L, lang, accent, onNavigate }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-  const notices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : d.notices;
+  const { data: d } = useSHData();
+  const notices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : (d.notices || []);
   const nowInfo = useSchoolNow();
   const timeUtil = window.SHSchoolTime;
-  const todayMeal = d.meal.today;
-  const tt = timeUtil ? timeUtil.getTodayTimetableRows(d.timetable.today, nowInfo) : d.timetable.today;
+  const todayMeal = d.meal?.today || { items: [], kcal: 0 };
+  const tt = timeUtil ? timeUtil.getTodayTimetableRows(d.timetable?.today || [], nowInfo) : (d.timetable?.today || []);
   const nowClass = tt.find((c) => c.now);
   const currentLabel = timeUtil ? timeUtil.getSegmentLabel(nowInfo.current, lang) : "";
   const dateLine = nowInfo ? `${lang === "ko" ? nowInfo.dateKo : nowInfo.dateEn} · ${currentLabel}` : "";
   const headline = timeUtil ? timeUtil.getHomeHeadline(nowInfo, lang, L.studentName) : "";
-  const quickForms = [...d.forms].sort((a, b) => b.recent - a.recent).slice(0, 4);
+  const quickForms = [...(d.forms || [])].sort((a, b) => b.recent - a.recent).slice(0, 4);
   const today = new Date();
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const upcomingEvents = Object.entries(d.calendar?.events || {})
@@ -38,6 +38,21 @@ function PCHome({ L, lang, accent, onNavigate }) {
       };
     });
 
+  // D-Day computation
+  const todayMidnight = new Date(today); todayMidnight.setHours(0, 0, 0, 0);
+  const ddays = (d.ddays || []).map((dd) => {
+    if (!dd.date) return null;
+    const target = new Date(dd.date); target.setHours(0, 0, 0, 0);
+    const diff = Math.round((target - todayMidnight) / 86400000);
+    return { ...dd, diff };
+  }).filter(Boolean).sort((a, b) => Math.abs(a.diff) - Math.abs(b.diff));
+
+  // Quote
+  const quote = d.quote || { text: "청춘! 그것은 행운이다.", author: "" };
+
+  // Lost items: only "found" category, active
+  const lostItemsFound = (d.lostItems || []).filter((it) => it.category === "found" && it.status !== "done").slice(0, 3);
+
   return (
     <div style={{
       padding: 32,
@@ -45,30 +60,20 @@ function PCHome({ L, lang, accent, onNavigate }) {
       gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
       gap: 20, alignContent: "start",
     }}>
-      {/* GREETING + STATS (full width) */}
+      {/* GREETING (full width) */}
       <div style={{ gridColumn: "1 / -1" }}>
-        <div style={{
-          display: "flex", alignItems: "flex-end", gap: 24,
-          padding: "0 8px 16px",
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#8B95A1", letterSpacing: "-0.012em" }}>
-              {L.school}
-            </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: accent }}>
-              {dateLine}
-            </div>
-            <div style={{
-              fontSize: 30, fontWeight: 800, color: "#191F28",
-              letterSpacing: "-0.025em", marginTop: 4, lineHeight: 1.2,
-            }}>
-              {L.studentName}{lang === "ko" ? "님, " : ", "}{headline}
-            </div>
+        <div style={{ padding: "0 8px 16px" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#8B95A1", letterSpacing: "-0.012em" }}>
+            {L.school}
           </div>
-          <div style={{ display: "flex", gap: 32, paddingBottom: 4 }}>
-            <PCStat label={lang === "ko" ? "확인 안 한 공지" : "Unread notices"} value="3" sub={lang === "ko" ? "1개 긴급" : "1 urgent"} color="#F04452"/>
-            <PCStat label={lang === "ko" ? "내 분실물" : "My items"} value="1" sub={lang === "ko" ? "찾는 중" : "Searching"} color={accent}/>
-            <PCStat label={lang === "ko" ? "내가 쓴 건의" : "My voice"} value="0" sub={lang === "ko" ? "오늘은 조용해요" : "All quiet"} color="#6B7683"/>
+          <div style={{ fontSize: 13, fontWeight: 700, color: accent }}>
+            {dateLine}
+          </div>
+          <div style={{
+            fontSize: 30, fontWeight: 800, color: "#191F28",
+            letterSpacing: "-0.025em", marginTop: 4, lineHeight: 1.2,
+          }}>
+            {L.studentName}{lang === "ko" ? "님, " : ", "}{headline}
           </div>
         </div>
       </div>
@@ -148,15 +153,43 @@ function PCHome({ L, lang, accent, onNavigate }) {
 
       <PCCard style={{ gridColumn: "2 / 3", alignSelf: "start" }} pad={24}>
         <div style={{
-          minHeight: 204, borderRadius: 14, border: "1px solid #F2F4F6",
+          borderRadius: 14, border: "1px solid #F2F4F6",
           background: "#fff",
           display: "flex", alignItems: "center", justifyContent: "center",
-          textAlign: "center", padding: "20px 26px",
+          textAlign: "center", padding: "24px 26px",
+          minHeight: ddays.length > 0 ? 0 : 204,
         }}>
-          <div style={{ fontSize: 26, fontWeight: 500, color: "#6B7683", letterSpacing: "-0.012em", lineHeight: 1.45 }}>
-            청춘! 그것은 행운이다.
+          <div>
+            {quote.text && (
+              <div style={{ fontSize: 22, fontWeight: 500, color: "#6B7683", letterSpacing: "-0.012em", lineHeight: 1.45, fontStyle: "italic" }}>
+                "{quote.text}"
+              </div>
+            )}
+            {quote.author && (
+              <div style={{ marginTop: 8, fontSize: 13, color: "#8B95A1", fontStyle: "normal" }}>— {quote.author}</div>
+            )}
           </div>
         </div>
+        {ddays.length > 0 && (
+          <div style={{ marginTop: 14, display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {ddays.map((dd) => (
+              <div key={dd.id} style={{
+                flex: "1 1 0", minWidth: 80,
+                background: "#F8F9FA", borderRadius: 12, padding: "10px 14px",
+                textAlign: "center",
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7683" }}>{dd.label}</div>
+                <div style={{
+                  fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em", marginTop: 2,
+                  color: dd.diff === 0 ? "#F04452" : dd.diff < 0 ? "#8B95A1" : accent,
+                }}>
+                  {dd.diff === 0 ? "D-Day" : dd.diff > 0 ? `D-${dd.diff}` : `D+${Math.abs(dd.diff)}`}
+                </div>
+                <div style={{ fontSize: 11, color: "#8B95A1", marginTop: 2 }}>{dd.date}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </PCCard>
 
       {/* TIMETABLE — right column */}
@@ -207,7 +240,7 @@ function PCHome({ L, lang, accent, onNavigate }) {
                     )}
                   </div>
                   <div style={{ fontSize: 11, color: "#6B7683", marginTop: 2 }}>
-                    {c.room} · {c.teacher}
+                    {c.time ? c.time.split("–")[0] : ""}
                   </div>
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#8B95A1", fontVariantNumeric: "tabular-nums" }}>
@@ -332,7 +365,12 @@ function PCHome({ L, lang, accent, onNavigate }) {
           onAction={() => onNavigate("lost")}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {d.lostItems.slice(0, 3).map((it) => (
+            {lostItemsFound.length === 0 && (
+              <div style={{ fontSize: 12, color: "#8B95A1" }}>
+                {lang === "ko" ? "보관 중인 분실물이 없어요." : "No held items right now."}
+              </div>
+            )}
+            {lostItemsFound.map((it) => (
               <div key={it.id} className="tds-press"
                 onClick={() => onNavigate("lost")}
                 style={{
@@ -370,41 +408,45 @@ function PCHome({ L, lang, accent, onNavigate }) {
         onAction={() => onNavigate("board")}
         style={{ gridColumn: "1 / 2" }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {d.suggestions.slice(0, 3).map((s, i) => (
-            <div key={s.id} className="tds-press"
-              onClick={() => onNavigate("board")}
-              style={{
-                display: "flex", alignItems: "center", gap: 14,
-                padding: "10px 14px", borderRadius: 12,
-                background: "#F8F9FA", cursor: "pointer",
-              }}>
-              <div style={{
-                width: 28, height: 28, borderRadius: 999,
-                background: i === 0 ? "#FFB400" : i === 1 ? "#B0B8C1" : "#C4824D",
-                color: "#fff", fontSize: 12, fontWeight: 800,
-                display: "inline-flex", alignItems: "center", justifyContent: "center",
-                flex: "0 0 28px",
-              }}>{i + 1}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 13, fontWeight: 700, color: "#191F28", letterSpacing: "-0.012em",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>{s[`title_${lang}`]}</div>
-                <div style={{ fontSize: 11, color: "#8B95A1", marginTop: 1 }}>
-                  {s.status === "done" ? L.sug_status_done : s.status === "review" ? L.sug_status_review : L.sug_status_open} · {s[`time_${lang}`]}
+        {(() => {
+          const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
+          return (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {(d.suggestions || []).slice(0, 3).map((s, i) => (
+                <div key={s.id} className="tds-press"
+                  onClick={() => onNavigate("board")}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 14,
+                    padding: "10px 14px", borderRadius: 12,
+                    background: "#F8F9FA", cursor: "pointer",
+                  }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 999,
+                    background: i === 0 ? "#FFB400" : i === 1 ? "#B0B8C1" : "#C4824D",
+                    color: "#fff", fontSize: 12, fontWeight: 800,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    flex: "0 0 28px",
+                  }}>{i + 1}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 13, fontWeight: 700, color: "#191F28", letterSpacing: "-0.012em",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>{s[`title_${lang}`]}</div>
+                    <div style={{ fontSize: 11, color: "#8B95A1", marginTop: 1 }}>
+                      {s.status === "done" ? L.sug_status_done : s.status === "review" ? L.sug_status_review : L.sug_status_open} · {s[`time_${lang}`]}
+                    </div>
+                  </div>
+                  {isAdmin && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 13, fontWeight: 800, color: accent }}>
+                      <IcThumbsUp size={14}/>
+                      <span style={{ fontVariantNumeric: "tabular-nums" }}>{(s.likes || 0).toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <div style={{
-                display: "inline-flex", alignItems: "center", gap: 4,
-                fontSize: 13, fontWeight: 800, color: accent,
-              }}>
-                <IcThumbsUp size={14}/>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{s.likes.toLocaleString()}</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </PCCard>
 
       {/* ANONYMOUS HERO — full width */}
