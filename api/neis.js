@@ -3,11 +3,8 @@
 const BASE_URL = "https://open.neis.go.kr/hub";
 
 function getQueryEntries(req) {
-  if (req?.query && typeof req.query === "object") {
-    return Object.entries(req.query);
-  }
-
-  const parsed = new URL(req.url, "https://local.schoolhub");
+  const rawUrl = typeof req?.url === "string" ? req.url : "/";
+  const parsed = new URL(rawUrl, "https://local.schoolhub");
   return [...parsed.searchParams.entries()];
 }
 
@@ -52,6 +49,7 @@ export default async function handler(req, res) {
     res.status(500).json({
       error: "Proxy failed",
       message: err?.message || String(err),
+      url: typeof req?.url === "string" ? req.url : null,
       hint: "Check NEIS_API_KEY and endpoint query parameters",
     });
   }
