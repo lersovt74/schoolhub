@@ -2,6 +2,15 @@
 
 const BASE_URL = "https://open.neis.go.kr/hub";
 
+function getQueryEntries(req) {
+  if (req?.query && typeof req.query === "object") {
+    return Object.entries(req.query);
+  }
+
+  const parsed = new URL(req.url, "https://local.schoolhub");
+  return [...parsed.searchParams.entries()];
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
@@ -9,7 +18,9 @@ export default async function handler(req, res) {
       return;
     }
 
-    const endpoint = String(req.query.endpoint || "").trim();
+    const queryEntries = getQueryEntries(req);
+    const queryMap = new Map(queryEntries);
+    const endpoint = String(queryMap.get("endpoint") || "").trim().replace(/^\/+/, "");
     if (!endpoint) {
       res.status(400).json({ error: "Missing endpoint" });
       return;
@@ -22,7 +33,7 @@ export default async function handler(req, res) {
     }
 
     const url = new URL(`${BASE_URL}/${endpoint}`);
-    Object.entries(req.query).forEach(([k, v]) => {
+    queryEntries.forEach(([k, v]) => {
       if (k === "endpoint" || k === "KEY") return;
       if (v === undefined || v === null || v === "") return;
       url.searchParams.set(k, String(v));
@@ -35,9 +46,13 @@ export default async function handler(req, res) {
     });
     const text = await upstream.text();
     res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=600");
+    res.setHeader("Content-Type", upstream.headers.get("content-type") || "application/json; charset=utf-8");
     res.status(upstream.status).send(text);
   } catch (err) {
-    res.status(500).json({ error: "Proxy failed", message: err?.message || String(err) });
+    res.status(500).json({
+      error: "Proxy failed",
+      message: err?.message || String(err),
+      hint: "Check NEIS_API_KEY and endpoint query parameters",
+    });
   }
 }
-
