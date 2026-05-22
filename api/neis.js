@@ -8,6 +8,19 @@ function getQueryEntries(req) {
   return [...parsed.searchParams.entries()];
 }
 
+function normalizeApiKey(raw) {
+  const value = String(raw || "").trim().replace(/^["']|["']$/g, "");
+  if (!value) return "";
+  try {
+    if (value.includes("%")) {
+      return decodeURIComponent(value);
+    }
+  } catch (_) {
+    // Keep original when decoding fails.
+  }
+  return value;
+}
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "GET") {
@@ -23,7 +36,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const key = process.env.NEIS_API_KEY;
+    const key = normalizeApiKey(process.env.NEIS_API_KEY);
     if (!key) {
       res.status(500).json({ error: "Server key is not configured" });
       return;
