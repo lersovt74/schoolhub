@@ -111,17 +111,18 @@ function SHProfileScreen({ t, lang, onBack }) {
   );
 }
 
-function SHSettingsScreen({ t, lang, onBack, go }) {
+function SHSettingsScreen({ t, lang, onBack, go, onLogout }) {
+  const rows = [
+    { id: "board", l: t.sug_title, sub: lang === "ko" ? "학교 건의를 확인하고 작성해요" : "Read and write suggestions" },
+    { id: "forms", l: t.forms_title, sub: lang === "ko" ? "자주 쓰는 양식을 빠르게 열어요" : "Open frequently used forms" },
+    { id: "exams", l: t.exams_title, sub: lang === "ko" ? "기출문제를 바로 확인해요" : "Open past exam sheets" },
+  ];
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 20 }}>
       <SHNav title={t.more_settings} onBack={onBack}/>
       <div style={{ padding: "14px 16px 0" }}>
         <SHCard radius={18} pad={0}>
-          {[
-            { id: "board", l: t.sug_title, sub: lang === "ko" ? "학교 건의를 확인하고 작성해요" : "Read and write suggestions" },
-            { id: "forms", l: t.forms_title, sub: lang === "ko" ? "자주 쓰는 양식을 빠르게 열어요" : "Open frequently used forms" },
-            { id: "exams", l: t.exams_title, sub: lang === "ko" ? "기출문제를 바로 확인해요" : "Open past exam sheets" },
-          ].map((row, i, arr) => (
+          {rows.map((row, i, arr) => (
             <div key={row.id}
               className="tds-press"
               onClick={() => go(row.id)}
@@ -138,6 +139,17 @@ function SHSettingsScreen({ t, lang, onBack, go }) {
             </div>
           ))}
         </SHCard>
+        <button
+          onClick={onLogout}
+          className="tds-press"
+          style={{
+            marginTop: 14, width: "100%", height: 52, borderRadius: 16, border: 0,
+            background: "#191F28", color: "#fff", fontSize: 15, fontWeight: 800,
+            cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          로그아웃
+        </button>
       </div>
     </div>
   );

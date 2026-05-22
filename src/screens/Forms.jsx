@@ -1,12 +1,20 @@
 // Forms.jsx — Attendance form downloads.
 
 function SHFormsScreen({ t, lang, accent, onBack, showToast }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [q, setQ] = React.useState("");
-  const filtered = d.forms.filter((f) =>
+  const filtered = (data.forms || []).filter((f) =>
     !q || (f[`title_${lang}`] || f.title_ko).toLowerCase().includes(q.toLowerCase())
   );
   const recent = [...filtered].sort((a, b) => b.recent - a.recent).slice(0, 3);
+  const downloadForm = (form) => {
+    if (form.asset) window.SHDownloadAsset?.(form.asset, window.SHSlug?.(form.title_ko, "form"));
+    updateData((draft) => {
+      const item = (draft.forms || []).find((x) => x.id === form.id);
+      if (item) item.recent = Number(item.recent || 0) + 1;
+    });
+    showToast(lang === "ko" ? `${form.title_ko} 다운로드 시작` : `Downloading ${form.title_en}`);
+  };
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 28 }}>
@@ -34,7 +42,7 @@ function SHFormsScreen({ t, lang, accent, onBack, showToast }) {
           <SHCard radius={20} pad={16}>
             <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
               {recent.map((f) => (
-                <div key={f.id} onClick={() => showToast(lang === "ko" ? `${f.title_ko} 다운로드 중…` : `Downloading ${f.title_en}…`)}
+                <div key={f.id} onClick={() => downloadForm(f)}
                   className="tds-press"
                   style={{
                     flex: "0 0 140px",
@@ -69,7 +77,7 @@ function SHFormsScreen({ t, lang, accent, onBack, showToast }) {
           {filtered.map((f, i) => (
             <div key={f.id}
               className="tds-press"
-              onClick={() => showToast(lang === "ko" ? `${f.title_ko} 다운로드 시작` : `Downloading ${f.title_en}`)}
+              onClick={() => downloadForm(f)}
               style={{
                 display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 18px", cursor: "pointer",

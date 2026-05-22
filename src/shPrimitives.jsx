@@ -212,7 +212,7 @@ function SHInput({ label, hint, value, onChange, placeholder, multiline, suffix,
 function SHBottomCTA({ children, dark = false }) {
   return (
     <div style={{
-      padding: "12px 20px 24px",
+      padding: "12px 20px calc(24px + env(safe-area-inset-bottom))",
       background: dark ? "rgba(15,23,42,0.96)" : "rgba(255,255,255,0.96)",
       backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",

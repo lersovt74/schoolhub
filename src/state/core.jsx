@@ -2,6 +2,12 @@
 
 const SH_USER_KEY = "schoolhub_user_v1";
 const SH_DATA_KEY = "schoolhub_data_v1";
+const SH_ADMIN_LOGIN = {
+  grade: "9",
+  className: "9",
+  number: "9",
+  name: "관관리자",
+};
 
 function shClone(v) {
   return JSON.parse(JSON.stringify(v));
@@ -51,6 +57,24 @@ async function shPushRemoteState(state) {
   }
 }
 
+function shNormalizeToken(v) {
+  return String(v || "").trim().replace(/\s+/g, "");
+}
+
+function shIsAdminLogin(user) {
+  if (!user) return false;
+  return (
+    shNormalizeToken(user.grade) === SH_ADMIN_LOGIN.grade &&
+    shNormalizeToken(user.className) === SH_ADMIN_LOGIN.className &&
+    shNormalizeToken(user.number) === SH_ADMIN_LOGIN.number &&
+    String(user.name || "").trim() === SH_ADMIN_LOGIN.name
+  );
+}
+
+function shIsAdminUser(user = window.SH_USER) {
+  return !!user && user.role === "admin" && shIsAdminLogin(user);
+}
+
 function shNormalizeUser(user) {
   if (!user || !user.name) return null;
   const grade = String(user.grade || 3).trim();
@@ -58,7 +82,7 @@ function shNormalizeUser(user) {
   const number = String(user.number || 1).trim();
   const name = String(user.name || "").trim();
   if (!name) return null;
-  const role = user.role === "admin" ? "admin" : "student";
+  const role = shIsAdminLogin({ grade, className, number, name }) ? "admin" : "student";
   return { grade, className, number, name, role };
 }
 
@@ -81,7 +105,7 @@ function shLoadData() {
 }
 
 function shGetData() {
-  return window.SH_RUNTIME_DATA || window.SH_DATA || {};
+  return window.SH_DATA || window.SH_RUNTIME_DATA || {};
 }
 
 function shUpdateData(updater) {
@@ -105,13 +129,97 @@ function shFormatClassLabel(user, lang = "ko") {
   return `${user.grade}학년 ${user.className}반`;
 }
 
-function shNormalizeToken(v) {
-  return String(v || "").trim().replace(/\s+/g, "");
-}
-
 function shStudentCode(user) {
   if (!user) return "";
   return `${shNormalizeToken(user.grade)}-${shNormalizeToken(user.className)}-${shNormalizeToken(user.number)}`;
+}
+
+function shSlug(input, fallback = "file") {
+  const text = String(input || "")
+    .trim()
+    .replace(/[^\w\-가-힣.]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return text || fallback;
+}
+
+function shInferExtension(type = "", name = "") {
+  const fromName = String(name).split(".").pop();
+  if (fromName && fromName !== name) return fromName.toLowerCase();
+  const map = {
+    "application/pdf": "pdf",
+    "application/haansofthwp": "hwp",
+    "application/x-hwp": "hwp",
+    "application/vnd.hancom.hwp": "hwp",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
+    "application/msword": "doc",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/gif": "gif",
+    "image/webp": "webp",
+  };
+  return map[type] || "bin";
+}
+
+function shReadFileAsset(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
+    reader.onload = () =>
+      resolve({
+        id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: Number(file.size || 0),
+        ext: shInferExtension(file.type, file.name),
+        dataUrl: String(reader.result || ""),
+      });
+    reader.readAsDataURL(file);
+  });
+}
+
+async function shReadFiles(fileList) {
+  const files = Array.from(fileList || []).filter(Boolean);
+  return Promise.all(files.map(shReadFileAsset));
+}
+
+function shDownloadAsset(asset, fallbackName = "download") {
+  if (!asset?.dataUrl) return false;
+  const link = document.createElement("a");
+  link.href = asset.dataUrl;
+  link.download = asset.name || `${fallbackName}.${shInferExtension(asset.type, asset.name)}`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  return true;
+}
+
+function shCreateReport(payload = {}) {
+  const report = {
+    id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    code: String(payload.code || Math.random().toString(36).slice(2, 8)).toUpperCase(),
+    category: String(payload.category || "etc"),
+    when: String(payload.when || "").trim(),
+    where: String(payload.where || "").trim(),
+    what: String(payload.what || "").trim(),
+    status: String(payload.status || "received"),
+    createdAt: payload.createdAt || new Date().toISOString(),
+    adminNote: String(payload.adminNote || ""),
+    resolutionNote: String(payload.resolutionNote || ""),
+    timeline: Array.isArray(payload.timeline) ? payload.timeline : [
+      {
+        key: "received",
+        when: new Date().toISOString(),
+        message_ko: "신고가 안전하게 접수됐어요.",
+        message_en: "Your report was safely received.",
+      },
+    ],
+  };
+  shUpdateData((draft) => {
+    if (!Array.isArray(draft.reports)) draft.reports = [];
+    draft.reports.unshift(report);
+  });
+  return report;
 }
 
 function shNoticeVisibleToUser(notice, user) {
@@ -147,7 +255,7 @@ function shApplyUserToRuntime(user) {
   window.SH_STRINGS.en.studentName = user.name;
   window.SH_STRINGS.en.grade = `Grade ${user.grade} · Class ${user.className} · No. ${user.number}`;
   window.SH_STRINGS.en.tt_class_3_5 = shFormatClassLabel(user, "en");
-  if (window.SH_NEIS_CONFIG) {
+  if (window.SH_NEIS_CONFIG && user?.role !== "admin") {
     window.SH_NEIS_CONFIG.grade = Number(user.grade) || window.SH_NEIS_CONFIG.grade;
     window.SH_NEIS_CONFIG.className = Number(user.className) || window.SH_NEIS_CONFIG.className;
   }
@@ -178,7 +286,7 @@ function shClearUser() {
 }
 
 function shApplyClassFallbackTimetable(user) {
-  if (!user) return;
+  if (!user || shIsAdminLogin(user)) return;
   const base = window.SH_DEFAULT_DATA || shGetData();
   const baseGrid = shClone(base?.timetable?.week?.grid || []);
   const baseToday = shClone(base?.timetable?.today || []);
@@ -248,6 +356,13 @@ Object.assign(window, {
   SHDataState: { load: shLoadData, save: shSaveData, get: shGetData, update: shUpdateData, reset: shResetData },
   SHVisibleNotices: shVisibleNotices,
   SHNoticeVisibleToUser: shNoticeVisibleToUser,
+  SHIsAdminLogin: shIsAdminLogin,
+  SHIsAdminUser: shIsAdminUser,
+  SHStudentCode: shStudentCode,
+  SHReadFiles: shReadFiles,
+  SHDownloadAsset: shDownloadAsset,
+  SHSlug: shSlug,
+  SHCreateReport: shCreateReport,
   useSHUser,
   useSHData,
 });

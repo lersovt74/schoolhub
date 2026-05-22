@@ -1,71 +1,110 @@
-// pc/Board.jsx — desktop suggestions: list + detail side, sort/filter.
+// pc/Board.jsx — desktop suggestions board with shared persistence.
 
 function PCBoard({ L, lang, accent }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [sort, setSort] = React.useState("hot");
   const [filter, setFilter] = React.useState("all");
-  const [items, setItems] = React.useState(() => d.suggestions.map((s) => ({ ...s, liked: false })));
-  const [selected, setSelected] = React.useState(items[0]?.id);
+  const [selected, setSelected] = React.useState(null);
+  const [draftOpen, setDraftOpen] = React.useState(false);
+  const [draftTitle, setDraftTitle] = React.useState("");
+  const [draftBody, setDraftBody] = React.useState("");
+  const [commentText, setCommentText] = React.useState("");
+  const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : "";
 
-  const sorted = [...items]
+  const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+  const sorted = [...suggestions]
     .filter((s) => filter === "all" || s.status === filter)
-    .sort((a, b) => sort === "hot" ? b.likes - a.likes : (a.id < b.id ? 1 : -1));
+    .sort((a, b) => sort === "hot" ? Number(b.likes || 0) - Number(a.likes || 0) : (a.id < b.id ? 1 : -1));
+
+  React.useEffect(() => {
+    if (!sorted.length) {
+      setSelected(null);
+      return;
+    }
+    if (!sorted.some((item) => item.id === selected)) {
+      setSelected(sorted[0].id);
+    }
+  }, [selected, sorted]);
+
+  const current = suggestions.find((s) => s.id === selected) || sorted[0] || null;
+  const comments = current?.comments || [];
+  const liked = !!current && (current.likedBy || []).includes(userCode);
 
   const toggleLike = (id, e) => {
-    e?.stopPropagation();
-    setItems((arr) => arr.map((s) =>
-      s.id === id ? { ...s, liked: !s.liked, likes: s.likes + (s.liked ? -1 : 1) } : s
-    ));
+    e?.stopPropagation?.();
+    updateData((draft) => {
+      const item = (draft.suggestions || []).find((s) => s.id === id);
+      if (!item) return;
+      if (!Array.isArray(item.likedBy)) item.likedBy = [];
+      const idx = item.likedBy.indexOf(userCode);
+      if (idx >= 0) item.likedBy.splice(idx, 1);
+      else item.likedBy.push(userCode);
+      item.likes = item.likedBy.length;
+    });
   };
 
-  const current = items.find((s) => s.id === selected);
-  const writeSuggestion = () => {
-    const title = window.prompt(lang === "ko" ? "건의 제목을 입력하세요" : "Enter suggestion title");
-    if (!title) return;
-    const body = window.prompt(lang === "ko" ? "건의 내용을 입력하세요" : "Enter suggestion details");
-    if (!body) return;
-    const newItem = {
-      id: `s-${Date.now()}`,
-      title_ko: title,
-      title_en: title,
-      body_ko: body,
-      body_en: body,
-      likes: 0,
-      status: "open",
-      author: "익명",
-      time_ko: "방금",
-      time_en: "now",
-    };
-    setItems((prev) => [newItem, ...prev]);
-    window.SHDataState?.update?.((draft) => {
+  const submitSuggestion = () => {
+    if (draftTitle.trim().length < 4 || draftBody.trim().length < 12) return;
+    updateData((draft) => {
       if (!Array.isArray(draft.suggestions)) draft.suggestions = [];
-      draft.suggestions.unshift(newItem);
+      draft.suggestions.unshift({
+        id: `s-${Date.now()}`,
+        title_ko: draftTitle.trim(),
+        title_en: draftTitle.trim(),
+        body_ko: draftBody.trim(),
+        body_en: draftBody.trim(),
+        likes: 0,
+        likedBy: [],
+        comments: [],
+        status: "open",
+        author: window.SH_USER?.name || "익명",
+        time_ko: "방금",
+        time_en: "now",
+      });
     });
-    setSelected(newItem.id);
+    setDraftTitle("");
+    setDraftBody("");
+    setDraftOpen(false);
+  };
+
+  const addComment = () => {
+    if (!current || !commentText.trim()) return;
+    updateData((draft) => {
+      const item = (draft.suggestions || []).find((s) => s.id === current.id);
+      if (!item) return;
+      if (!Array.isArray(item.comments)) item.comments = [];
+      item.comments.push({
+        id: `c-${Date.now()}`,
+        author: window.SH_USER?.name || "익명",
+        staff: false,
+        time_ko: "방금",
+        time_en: "now",
+        body_ko: commentText.trim(),
+        body_en: commentText.trim(),
+      });
+    });
+    setCommentText("");
   };
 
   return (
     <div style={{ padding: 32, display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20, alignItems: "start" }}>
-      {/* LEFT */}
       <div>
         <div style={{ padding: "0 4px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{
-            display: "inline-flex", padding: 4, background: "rgba(7,25,76,0.06)", borderRadius: 12,
-          }}>
+          <div style={{ display: "inline-flex", padding: 4, background: "rgba(7,25,76,0.06)", borderRadius: 12 }}>
             {[
               { v: "hot", l: L.sug_sort_hot },
               { v: "new", l: L.sug_sort_new },
-            ].map((s) => {
-              const on = s.v === sort;
+            ].map((item) => {
+              const on = item.v === sort;
               return (
-                <button key={s.v} onClick={() => setSort(s.v)} style={{
+                <button key={item.v} onClick={() => setSort(item.v)} style={{
                   height: 36, padding: "0 18px", border: 0, borderRadius: 9,
                   background: on ? "#fff" : "transparent",
                   color: on ? "#191F28" : "#6B7683",
                   fontSize: 13, fontWeight: 800, cursor: "pointer",
                   fontFamily: "inherit", letterSpacing: "-0.012em",
                   boxShadow: on ? "0 1px 3px rgba(0,19,43,0.06)" : "none",
-                }}>{s.l}</button>
+                }}>{item.l}</button>
               );
             })}
           </div>
@@ -76,12 +115,12 @@ function PCBoard({ L, lang, accent }) {
               { v: "open", l: L.sug_status_open },
               { v: "review", l: L.sug_sort_review },
               { v: "done", l: L.sug_sort_done },
-            ].map((f) => (
-              <Chip key={f.v} active={filter === f.v} onClick={() => setFilter(f.v)}>{f.l}</Chip>
+            ].map((item) => (
+              <Chip key={item.v} active={filter === item.v} onClick={() => setFilter(item.v)}>{item.l}</Chip>
             ))}
           </div>
 
-          <button onClick={writeSuggestion} className="tds-press" style={{
+          <button onClick={() => setDraftOpen((v) => !v)} className="tds-press" style={{
             marginLeft: "auto",
             height: 36, padding: "0 14px", borderRadius: 10, border: 0,
             background: accent, color: "#fff",
@@ -92,9 +131,29 @@ function PCBoard({ L, lang, accent }) {
           </button>
         </div>
 
+        {draftOpen && (
+          <PCCard title={L.sug_write} pad={20} style={{ marginBottom: 16 }}>
+            <div style={{ display: "grid", gap: 12 }}>
+              <PCField label={lang === "ko" ? "제목" : "Title"} value={draftTitle} onChange={setDraftTitle} placeholder={lang === "ko" ? "예) 급식실 동선을 개선해 주세요" : "Suggestion title"} />
+              <PCField label={lang === "ko" ? "내용" : "Details"} value={draftBody} onChange={setDraftBody} placeholder={lang === "ko" ? "학생들이 겪는 불편과 개선 아이디어를 적어주세요" : "Describe the issue and your idea"} multiline />
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                <button onClick={() => setDraftOpen(false)} style={{
+                  height: 38, padding: "0 14px", borderRadius: 10, border: 0,
+                  background: "rgba(7,25,76,0.06)", color: "#4E5968", cursor: "pointer", fontFamily: "inherit", fontWeight: 700,
+                }}>{lang === "ko" ? "닫기" : "Close"}</button>
+                <button onClick={submitSuggestion} style={{
+                  height: 38, padding: "0 14px", borderRadius: 10, border: 0,
+                  background: accent, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 800,
+                }}>{lang === "ko" ? "등록" : "Post"}</button>
+              </div>
+            </div>
+          </PCCard>
+        )}
+
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {sorted.map((s, i) => {
             const on = s.id === selected;
+            const rowLiked = (s.likedBy || []).includes(userCode);
             return (
               <div key={s.id} onClick={() => setSelected(s.id)} className="tds-press" style={{
                 background: "#fff", borderRadius: 14, padding: 18, cursor: "pointer",
@@ -115,14 +174,11 @@ function PCBoard({ L, lang, accent }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{
                     padding: "3px 8px", borderRadius: 6,
-                    background: s.status === "done" ? "rgba(0,123,51,0.12)"
-                      : s.status === "review" ? "rgba(255,180,0,0.18)" : "rgba(7,25,76,0.05)",
-                    color: s.status === "done" ? "#007B33"
-                      : s.status === "review" ? "#8A5C00" : "#4E5968",
+                    background: s.status === "done" ? "rgba(0,123,51,0.12)" : s.status === "review" ? "rgba(255,180,0,0.18)" : "rgba(7,25,76,0.05)",
+                    color: s.status === "done" ? "#007B33" : s.status === "review" ? "#8A5C00" : "#4E5968",
                     fontSize: 10, fontWeight: 800,
                   }}>
-                    {s.status === "done" ? L.sug_status_done
-                      : s.status === "review" ? L.sug_status_review : L.sug_status_open}
+                    {s.status === "done" ? L.sug_status_done : s.status === "review" ? L.sug_status_review : L.sug_status_open}
                   </span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#8B95A1" }}>
                     {L.sug_anon} · {s[`time_${lang}`]}
@@ -143,23 +199,21 @@ function PCBoard({ L, lang, accent }) {
                   <button onClick={(e) => toggleLike(s.id, e)} className="tds-press" style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "6px 12px", borderRadius: 999, border: 0,
-                    background: s.liked ? `${accent}1F` : "rgba(7,25,76,0.05)",
-                    color: s.liked ? accent : "#4E5968",
+                    background: rowLiked ? `${accent}1F` : "rgba(7,25,76,0.05)",
+                    color: rowLiked ? accent : "#4E5968",
                     fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
-                    transition: "all 200ms",
                   }}>
-                    {s.liked ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{s.likes.toLocaleString()}</span>
+                    {rowLiked ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(s.likes || 0).toLocaleString()}</span>
                   </button>
                   <span style={{ fontSize: 12, color: "#8B95A1" }}>
-                    {lang === "ko" ? "댓글 12" : "12 comments"}
+                    {lang === "ko" ? `댓글 ${(s.comments || []).length}` : `${(s.comments || []).length} comments`}
                   </span>
                   {s.reply_ko && (
                     <span style={{
                       marginLeft: "auto",
                       fontSize: 11, fontWeight: 700, color: "#007B33",
                       padding: "3px 8px", borderRadius: 6, background: "rgba(0,123,51,0.08)",
-                      display: "inline-flex", alignItems: "center", gap: 4,
                     }}>✓ {L.sug_replied}</span>
                   )}
                 </div>
@@ -169,7 +223,6 @@ function PCBoard({ L, lang, accent }) {
         </div>
       </div>
 
-      {/* RIGHT: detail */}
       <div style={{
         position: "sticky", top: 32,
         background: "#fff", borderRadius: 18, padding: 28,
@@ -180,31 +233,23 @@ function PCBoard({ L, lang, accent }) {
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{
                 padding: "3px 10px", borderRadius: 6,
-                background: current.status === "done" ? "rgba(0,123,51,0.12)"
-                  : current.status === "review" ? "rgba(255,180,0,0.18)" : "rgba(7,25,76,0.05)",
-                color: current.status === "done" ? "#007B33"
-                  : current.status === "review" ? "#8A5C00" : "#4E5968",
+                background: current.status === "done" ? "rgba(0,123,51,0.12)" : current.status === "review" ? "rgba(255,180,0,0.18)" : "rgba(7,25,76,0.05)",
+                color: current.status === "done" ? "#007B33" : current.status === "review" ? "#8A5C00" : "#4E5968",
                 fontSize: 11, fontWeight: 800,
               }}>
-                {current.status === "done" ? L.sug_status_done
-                  : current.status === "review" ? L.sug_status_review : L.sug_status_open}
+                {current.status === "done" ? L.sug_status_done : current.status === "review" ? L.sug_status_review : L.sug_status_open}
               </span>
               <span style={{ fontSize: 11, color: "#8B95A1" }}>{L.sug_anon} · {current[`time_${lang}`]}</span>
             </div>
-            <h3 style={{
-              margin: "12px 0 0", fontSize: 20, fontWeight: 800,
-              color: "#191F28", letterSpacing: "-0.02em", lineHeight: 1.3,
-            }}>{current[`title_${lang}`]}</h3>
-            <p style={{
-              margin: "12px 0 0", fontSize: 14, color: "#4E5968",
-              lineHeight: 1.65, whiteSpace: "pre-wrap",
-            }}>{current[`body_${lang}`]}</p>
+            <h3 style={{ margin: "12px 0 0", fontSize: 20, fontWeight: 800, color: "#191F28", letterSpacing: "-0.02em", lineHeight: 1.3 }}>
+              {current[`title_${lang}`]}
+            </h3>
+            <p style={{ margin: "12px 0 0", fontSize: 14, color: "#4E5968", lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+              {current[`body_${lang}`]}
+            </p>
 
             {current.reply_ko && (
-              <div style={{
-                marginTop: 18, padding: 16, borderRadius: 12,
-                background: "rgba(0,123,51,0.06)",
-              }}>
+              <div style={{ marginTop: 18, padding: 16, borderRadius: 12, background: "rgba(0,123,51,0.06)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div style={{
                     width: 28, height: 28, borderRadius: 8,
@@ -222,39 +267,57 @@ function PCBoard({ L, lang, accent }) {
             <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={(e) => toggleLike(current.id, e)} className="tds-press" style={{
                 height: 44, padding: "0 16px", borderRadius: 12, border: 0,
-                background: current.liked ? `${accent}1F` : "rgba(7,25,76,0.05)",
-                color: current.liked ? accent : "#191F28",
+                background: liked ? `${accent}1F` : "rgba(7,25,76,0.05)",
+                color: liked ? accent : "#191F28",
                 fontSize: 14, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
                 display: "inline-flex", alignItems: "center", gap: 6,
               }}>
-                {current.liked ? <IcThumbsUp size={16}/> : <IcThumbsUpOutline size={16}/>}
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{current.likes.toLocaleString()}</span>
+                {liked ? <IcThumbsUp size={16}/> : <IcThumbsUpOutline size={16}/>}
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>{Number(current.likes || 0).toLocaleString()}</span>
               </button>
               <span style={{ fontSize: 13, color: "#8B95A1" }}>
-                {lang === "ko" ? "댓글 12개" : "12 comments"}
+                {lang === "ko" ? `댓글 ${comments.length}개` : `${comments.length} comments`}
               </span>
             </div>
 
-            <div style={{ marginTop: 16, paddingTop: 16, borderTop: "1px solid #F2F4F6" }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "#191F28", letterSpacing: "-0.012em" }}>
-                {lang === "ko" ? "최근 댓글" : "Recent comments"}
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #F2F4F6" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#191F28", marginBottom: 12 }}>
+                {lang === "ko" ? "댓글" : "Comments"}
               </div>
-              {[
-                { author: "익명1", time: lang === "ko" ? "3일 전" : "3d", body: lang === "ko" ? "저도 동의해요. 오늘 1학년 동생이랑 부딪혔어요." : "Same — bumped into a 1st grader." },
-                { author: lang === "ko" ? "학생회" : "Council", time: lang === "ko" ? "2일 전" : "2d", body: lang === "ko" ? "의견 감사합니다! 학교에 전달했어요." : "Thanks! Raised with the school.", staff: true },
-              ].map((c, i) => (
-                <div key={i} style={{ marginTop: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    {c.staff ? (
-                      <span style={{ padding: "2px 8px", borderRadius: 5, background: "rgba(49,130,246,0.12)", color: "#1B64DA", fontSize: 10, fontWeight: 800 }}>{c.author}</span>
-                    ) : (
-                      <span style={{ fontSize: 12, fontWeight: 700, color: "#4E5968" }}>{c.author}</span>
-                    )}
-                    <span style={{ fontSize: 11, color: "#8B95A1" }}>· {c.time}</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {comments.map((c) => (
+                  <div key={c.id} style={{
+                    padding: "12px 14px", borderRadius: 12,
+                    background: c.staff ? "rgba(49,130,246,0.06)" : "rgba(7,25,76,0.03)",
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: c.staff ? "#1B64DA" : "#4E5968" }}>
+                        {c.author}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#8B95A1" }}>· {c[`time_${lang}`]}</span>
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, color: "#191F28", lineHeight: 1.55 }}>
+                      {c[`body_${lang}`]}
+                    </div>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, color: "#191F28", lineHeight: 1.55 }}>{c.body}</div>
-                </div>
-              ))}
+                ))}
+                {comments.length === 0 && (
+                  <div style={{ fontSize: 12, color: "#8B95A1" }}>
+                    {lang === "ko" ? "아직 댓글이 없어요." : "No comments yet."}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+              <textarea value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder={lang === "ko" ? "댓글을 적어주세요" : "Add a comment"} style={{
+                flex: 1, minHeight: 88, borderRadius: 12, border: "1px solid #E5E8EB",
+                padding: "12px 14px", resize: "vertical", outline: "none", fontFamily: "inherit", fontSize: 14,
+              }} />
+              <button onClick={addComment} style={{
+                width: 96, borderRadius: 12, border: 0, background: accent, color: "#fff",
+                fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+              }}>{lang === "ko" ? "등록" : "Post"}</button>
             </div>
           </>
         ) : (

@@ -4,8 +4,15 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
   const { data, updateData } = useSHData();
   const [tab, setTab] = React.useState("notice");
   const [noticeTitle, setNoticeTitle] = React.useState("");
+  const [noticeBody, setNoticeBody] = React.useState("");
   const [noticeTarget, setNoticeTarget] = React.useState("all");
   const [noticeTargetValue, setNoticeTargetValue] = React.useState("");
+  const [noticeAssets, setNoticeAssets] = React.useState([]);
+  const [boardReplies, setBoardReplies] = React.useState({});
+  const [reportNotes, setReportNotes] = React.useState({});
+  const noticeFileRef = React.useRef(null);
+  const formFileRef = React.useRef(null);
+  const examFileRef = React.useRef(null);
 
   const sendNotice = () => {
     if (!noticeTitle.trim()) return;
@@ -16,15 +23,21 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
         id: `n-${Date.now()}`,
         tag: "공지",
         title: noticeTitle.trim(),
+        body: noticeBody.trim(),
         time_ko: "방금",
         time_en: "now",
         pinned: true,
-      target: noticeTarget,
-      targetValue: noticeTargetValue.trim(),
+        target: noticeTarget,
+        targetValue: noticeTargetValue.trim(),
+        attachments: noticeAssets,
+        createdAt: new Date().toISOString(),
+        createdAtLabel: new Date().toLocaleString("ko-KR"),
       });
     });
     setNoticeTitle("");
+    setNoticeBody("");
     setNoticeTargetValue("");
+    setNoticeAssets([]);
   };
 
   const cycleStatus = (key, id, order) => {
@@ -43,36 +56,59 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
     });
   };
 
-  const addForm = () => {
-    const title = window.prompt(lang === "ko" ? "양식 이름" : "Form title");
-    if (!title) return;
+  const saveBoardReply = (id) => {
+    const reply = String(boardReplies[id] || "").trim();
+    if (!reply) return;
     updateData((draft) => {
-      if (!Array.isArray(draft.forms)) draft.forms = [];
-      draft.forms.unshift({
-        id: `f-${Date.now()}`,
-        title_ko: title,
-        title_en: title,
-        fmt: "PDF",
-        size: 0,
-        recent: 0,
-      });
+      const item = (draft.suggestions || []).find((x) => x.id === id);
+      if (!item) return;
+      item.reply_ko = reply;
+      item.reply_en = reply;
+      if (item.status === "open") item.status = "review";
+    });
+    setBoardReplies((prev) => ({ ...prev, [id]: "" }));
+  };
+
+  const saveReportNote = (id) => {
+    const note = String(reportNotes[id] || "").trim();
+    updateData((draft) => {
+      const item = (draft.reports || []).find((x) => x.id === id);
+      if (!item) return;
+      if (item.status === "resolved") item.resolutionNote = note;
+      else item.adminNote = note;
     });
   };
 
-  const addExam = () => {
-    const subject = window.prompt(lang === "ko" ? "과목명" : "Subject");
-    if (!subject) return;
+  const addFilesToState = async (files, kind) => {
+    const assets = await window.SHReadFiles?.(files);
+    if (!assets?.length) return;
     updateData((draft) => {
-      if (!Array.isArray(draft.exams)) draft.exams = [];
-      draft.exams.unshift({
-        id: `e-${Date.now()}`,
-        subject,
-        subjectEn: subject,
-        grade: Number(window.SH_USER?.grade || 3),
-        year: new Date().getFullYear(),
-        term: 1,
-        type: "기말",
-        count: 0,
+      const key = kind === "form" ? "forms" : "exams";
+      if (!Array.isArray(draft[key])) draft[key] = [];
+      assets.forEach((asset) => {
+        if (kind === "form") {
+          draft.forms.unshift({
+            id: `f-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            title_ko: asset.name.replace(/\.[^.]+$/, ""),
+            title_en: asset.name.replace(/\.[^.]+$/, ""),
+            fmt: (asset.ext || "file").toUpperCase(),
+            size: Math.max(1, Math.round((asset.size || 0) / 1024)),
+            recent: 0,
+            asset,
+          });
+        } else {
+          draft.exams.unshift({
+            id: `e-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+            subject: asset.name.replace(/\.[^.]+$/, ""),
+            subjectEn: asset.name.replace(/\.[^.]+$/, ""),
+            grade: Number(window.SH_USER?.grade || 3),
+            year: new Date().getFullYear(),
+            term: 1,
+            type: "기출",
+            count: 0,
+            asset,
+          });
+        }
       });
     });
   };
@@ -95,6 +131,9 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
         <div style={{ padding: "12px 16px 0" }}>
           <SHCard radius={16} pad={14}>
             <SHInput label="공지 제목" value={noticeTitle} onChange={setNoticeTitle} placeholder="내용을 입력하세요" />
+            <div style={{ marginTop: 10 }}>
+              <SHInput label="공지 내용" value={noticeBody} onChange={setNoticeBody} placeholder="자세한 안내를 적어주세요" multiline />
+            </div>
             <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
               {[
                 { v: "single", l: "개별" },
@@ -111,6 +150,21 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
                 />
               </div>
             )}
+            <div style={{ marginTop: 10 }}>
+              <input ref={noticeFileRef} type="file" accept="image/*,.pdf,.hwp,.doc,.docx" multiple style={{ display: "none" }}
+                onChange={async (e) => setNoticeAssets(await window.SHReadFiles?.(e.target.files) || [])}/>
+              <button onClick={() => noticeFileRef.current?.click()} style={{
+                width: "100%", height: 42, borderRadius: 10, border: "1px dashed #B0B8C1",
+                background: "#fff", color: "#4E5968", fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+              }}>이미지 / 파일 첨부</button>
+              {noticeAssets.length > 0 && (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                  {noticeAssets.map((asset) => (
+                    <div key={asset.id} style={{ fontSize: 12, color: "#6B7683" }}>{asset.name}</div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={sendNotice} style={{
               marginTop: 12, width: "100%", height: 42, borderRadius: 10, border: 0,
               background: accent, color: "#fff", fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
@@ -149,9 +203,19 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
             <SHCard key={r.id} radius={12} pad={12}>
               <div style={{ fontSize: 12, color: "#6B7683" }}>{r.code} · {r.category}</div>
               <div style={{ marginTop: 6, fontSize: 13, fontWeight: 700 }}>{r.what}</div>
+              <div style={{ marginTop: 8 }}>
+                <SHInput
+                  label={r.status === "resolved" ? "처리 결과" : "관리자 메모"}
+                  value={reportNotes[r.id] ?? (r.status === "resolved" ? (r.resolutionNote || "") : (r.adminNote || ""))}
+                  onChange={(v) => setReportNotes((prev) => ({ ...prev, [r.id]: v }))}
+                  placeholder={r.status === "resolved" ? "최종 처리 결과를 적어주세요" : "진행 상황을 적어주세요"}
+                  multiline
+                />
+                <button onClick={() => saveReportNote(r.id)} style={{ marginTop: 8, border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 800 }}>메모 저장</button>
+              </div>
               <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
                 <Chip active>{r.status}</Chip>
-                <button onClick={() => cycleStatus("reports", r.id, ["review", "resolved"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
+                <button onClick={() => cycleStatus("reports", r.id, ["received", "review", "resolved"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
               </div>
             </SHCard>
           ))}
@@ -167,6 +231,16 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
                 <button onClick={() => cycleStatus("suggestions", s.id, ["open", "review", "done"])} style={{ border: 0, background: "transparent", color: accent, cursor: "pointer" }}>상태변경</button>
                 <button onClick={() => removeItem("suggestions", s.id)} style={{ border: 0, background: "transparent", color: "#D43144", cursor: "pointer" }}>삭제</button>
               </div>
+              <div style={{ marginTop: 8 }}>
+                <SHInput
+                  label="답변"
+                  value={boardReplies[s.id] ?? (s.reply_ko || "")}
+                  onChange={(v) => setBoardReplies((prev) => ({ ...prev, [s.id]: v }))}
+                  placeholder="학생에게 보여줄 답변을 적어주세요"
+                  multiline
+                />
+                <button onClick={() => saveBoardReply(s.id)} style={{ marginTop: 8, border: 0, background: "transparent", color: accent, cursor: "pointer", fontWeight: 800 }}>답변 저장</button>
+              </div>
             </SHCard>
           ))}
         </div>
@@ -175,8 +249,10 @@ function SHAdminScreen({ t, lang, accent, onBack }) {
       {tab === "docs" && (
         <div style={{ padding: "12px 16px 0" }}>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={addForm} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#E8F1FE", color: "#1B64DA", fontWeight: 800, cursor: "pointer" }}>출결 양식 추가</button>
-            <button onClick={addExam} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#FFF6DD", color: "#B96B00", fontWeight: 800, cursor: "pointer" }}>기출문제 추가</button>
+            <input ref={formFileRef} type="file" accept=".pdf,.hwp,.doc,.docx" multiple style={{ display: "none" }} onChange={(e) => addFilesToState(e.target.files, "form")} />
+            <input ref={examFileRef} type="file" accept=".pdf,.hwp,.doc,.docx" multiple style={{ display: "none" }} onChange={(e) => addFilesToState(e.target.files, "exam")} />
+            <button onClick={() => formFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#E8F1FE", color: "#1B64DA", fontWeight: 800, cursor: "pointer" }}>출결 양식 업로드</button>
+            <button onClick={() => examFileRef.current?.click()} style={{ flex: 1, height: 42, borderRadius: 10, border: 0, background: "#FFF6DD", color: "#B96B00", fontWeight: 800, cursor: "pointer" }}>기출문제 업로드</button>
           </div>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
             <SHCard radius={12} pad={12}>

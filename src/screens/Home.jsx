@@ -38,7 +38,7 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
 
   return (
     <div style={{
-      background: "#F2F4F6", minHeight: "100%", paddingBottom: 28, paddingTop: 47,
+      background: "#F2F4F6", minHeight: "100%", paddingBottom: "calc(116px + env(safe-area-inset-bottom))", paddingTop: 47,
     }}>
       {/* Status spacer + top bar */}
       <SHTopBar
@@ -310,9 +310,9 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
   );
 }
 
-function SHNoticesScreen({ t, lang, accent, onBack }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-  const visibleNotices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : d.notices;
+function SHNoticesScreen({ t, lang, accent, onBack, push }) {
+  const { data } = useSHData();
+  const visibleNotices = window.SHVisibleNotices ? window.SHVisibleNotices(data.notices, window.SH_USER) : data.notices;
   const [tab, setTab] = React.useState("all");
   const [readSet, setReadSet] = React.useState(() => new Set());
 
@@ -352,7 +352,10 @@ function SHNoticesScreen({ t, lang, accent, onBack }) {
             return (
               <button
                 key={n.id}
-                onClick={() => toggleRead(n.id)}
+                onClick={() => {
+                  toggleRead(n.id);
+                  push("notice-detail", { id: n.id });
+                }}
                 className="tds-press"
                 style={{
                   width: "100%", border: 0, background: "#fff", textAlign: "left",
@@ -402,6 +405,67 @@ function SHNoticesScreen({ t, lang, accent, onBack }) {
   );
 }
 
+function SHNoticeDetailScreen({ t, lang, accent, onBack, noticeId }) {
+  const { data } = useSHData();
+  const notice = (data.notices || []).find((n) => n.id === noticeId) || (data.notices || [])[0];
+  if (!notice) return null;
+  const attachments = Array.isArray(notice.attachments) ? notice.attachments : [];
+  const imageAssets = attachments.filter((asset) => String(asset.type || "").startsWith("image/"));
+  const fileAssets = attachments.filter((asset) => !String(asset.type || "").startsWith("image/"));
+
+  return (
+    <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 28 }}>
+      <SHNav title="받은 알리미 상세보기" onBack={onBack}/>
+      <div style={{ padding: "10px 16px 0" }}>
+        <SHCard radius={20} pad={20}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: "#191F28", letterSpacing: "-0.03em", lineHeight: 1.24 }}>
+            {notice.title}
+          </div>
+          <div style={{ marginTop: 14, fontSize: 14, color: "#6B7683", lineHeight: 1.45 }}>
+            장평중학교
+            <br />
+            {notice.createdAtLabel || notice.time_ko || notice.time_en}
+          </div>
+          {!!notice.body && (
+            <div style={{ marginTop: 20, fontSize: 15, color: "#191F28", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+              {notice.body}
+            </div>
+          )}
+
+          {imageAssets.length > 0 && (
+            <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              {imageAssets.map((asset) => (
+                <img key={asset.id} src={asset.dataUrl} alt={asset.name} style={{ width: "100%", borderRadius: 14, border: "1px solid #E5E8EB" }} />
+              ))}
+            </div>
+          )}
+
+          {fileAssets.length > 0 && (
+            <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+              {fileAssets.map((asset) => (
+                <button
+                  key={asset.id}
+                  onClick={() => window.SHDownloadAsset?.(asset, window.SHSlug?.(notice.title, "notice"))}
+                  className="tds-press"
+                  style={{
+                    width: "100%", border: 0, background: "rgba(49,130,246,0.08)", color: "#1B64DA",
+                    borderRadius: 14, padding: "14px 16px", fontFamily: "inherit",
+                    display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                  }}
+                >
+                  <IcDocument size={18}/>
+                  <span style={{ flex: 1, textAlign: "left", fontSize: 14, fontWeight: 700 }}>{asset.name}</span>
+                  <IcDownload size={18}/>
+                </button>
+              ))}
+            </div>
+          )}
+        </SHCard>
+      </div>
+    </div>
+  );
+}
+
 // utility: darken a hex by N percent (negative darkens)
 function shadeColor(hex, percent) {
   const h = hex.replace("#", "");
@@ -416,4 +480,5 @@ function shadeColor(hex, percent) {
 
 window.SHHomeScreen = SHHomeScreen;
 window.SHNoticesScreen = SHNoticesScreen;
+window.SHNoticeDetailScreen = SHNoticeDetailScreen;
 window.shadeColor = shadeColor;

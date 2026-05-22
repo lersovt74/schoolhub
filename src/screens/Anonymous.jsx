@@ -391,8 +391,19 @@ function SHReportDoneScreen({ t, lang, accent, code, onCheck, onHome, showToast 
 // 4) Check — enter code to open status
 // ─────────────────────────────────────────────────────────────────────────────
 function SHReportCheckScreen({ t, lang, accent, onBack, onSuccess, prefillCode }) {
+  const { data } = useSHData();
   const [code, setCode] = React.useState("");
   const valid = code.length === 6;
+  const normalizedReports = Array.isArray(data.reports) ? data.reports : [];
+
+  const handleOpen = () => {
+    const found = normalizedReports.find((r) => String(r.code || "").toUpperCase() === code);
+    if (!found) {
+      window.alert?.(lang === "ko" ? "일치하는 신고 코드를 찾지 못했어요." : "No report matched that code.");
+      return;
+    }
+    onSuccess(found);
+  };
 
   return (
     <div style={{ minHeight: "100%", background: "#0F172A", color: "#fff", paddingTop: 47, display: "flex", flexDirection: "column" }}>
@@ -454,7 +465,7 @@ function SHReportCheckScreen({ t, lang, accent, onBack, onSuccess, prefillCode }
       <div style={{ flex: 1 }}/>
 
       <SHBottomCTA dark>
-        <button onClick={onSuccess} disabled={!valid} className="tds-press" style={{
+        <button onClick={handleOpen} disabled={!valid} className="tds-press" style={{
           width: "100%", height: 56, borderRadius: 14, border: 0,
           background: valid ? "#fff" : "rgba(255,255,255,0.2)",
           color: valid ? "#0F172A" : "rgba(255,255,255,0.5)",
@@ -469,25 +480,44 @@ function SHReportCheckScreen({ t, lang, accent, onBack, onSuccess, prefillCode }
 // ─────────────────────────────────────────────────────────────────────────────
 // 5) Status — timeline
 // ─────────────────────────────────────────────────────────────────────────────
-function SHReportStatusScreen({ t, lang, accent, code, onBack, onHome }) {
-  // Demo: pretend the case is currently at "review"
+function SHReportStatusScreen({ t, lang, accent, code, reportId, onBack, onHome }) {
+  const { data } = useSHData();
+  const report = (data.reports || []).find((r) => r.id === reportId)
+    || (data.reports || []).find((r) => String(r.code || "").toUpperCase() === String(code || "").toUpperCase());
+  const createdLabel = report?.createdAt
+    ? new Date(report.createdAt).toLocaleString(lang === "ko" ? "ko-KR" : "en-US")
+    : (lang === "ko" ? "방금" : "now");
+  const status = report?.status || "review";
   const steps = [
     {
-      key: "received", title: t.anon_status_received, when_ko: "2026.05.21 09:14", when_en: "May 21, 9:14",
-      desc_ko: "신고가 안전하게 접수됐어요. 자동으로 학생 안전부에 전달됐어요.",
-      desc_en: "Report received and auto-routed to the safety officer.",
+      key: "received",
+      title: t.anon_status_received,
+      when_ko: createdLabel,
+      when_en: createdLabel,
+      desc_ko: "신고가 안전하게 접수됐어요. 자동으로 학생 안전 담당자에게 전달됐어요.",
+      desc_en: "Your report was safely received and routed to the safety team.",
+      done: true,
     },
     {
-      key: "review", title: t.anon_status_review, when_ko: "2026.05.21 14:02", when_en: "May 21, 14:02",
-      desc_ko: "안전부 선생님이 내용을 확인하는 중이에요. 추가 정보가 필요할 수 있어요.",
-      desc_en: "Officer is reviewing. May request more info.",
-      current: true,
+      key: "review",
+      title: t.anon_status_review,
+      when_ko: status === "review" || status === "resolved" ? createdLabel : "—",
+      when_en: status === "review" || status === "resolved" ? createdLabel : "—",
+      desc_ko: report?.adminNote || "관리자가 신고 내용을 확인하고 있어요.",
+      desc_en: report?.adminNote || "An administrator is reviewing the report.",
+      current: status === "review",
+      done: status === "resolved",
+      pending: status === "received",
     },
     {
-      key: "resolved", title: t.anon_status_resolved, when_ko: "—", when_en: "—",
-      desc_ko: "처리가 끝나면 결과를 이 코드로 다시 확인할 수 있어요.",
-      desc_en: "Result will appear here when resolved.",
-      pending: true,
+      key: "resolved",
+      title: t.anon_status_resolved,
+      when_ko: status === "resolved" ? createdLabel : "—",
+      when_en: status === "resolved" ? createdLabel : "—",
+      desc_ko: report?.resolutionNote || "처리가 끝나면 이곳에 결과가 보여요.",
+      desc_en: report?.resolutionNote || "The final result will appear here when resolved.",
+      current: status === "resolved",
+      pending: status !== "resolved",
     },
   ];
 
@@ -513,11 +543,11 @@ function SHReportStatusScreen({ t, lang, accent, code, onBack, onHome }) {
                 {t.anon_code}
               </div>
               <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--tds-font-mono)", letterSpacing: "0.08em", marginTop: 2 }}>
-                {code}
-              </div>
+              {report?.code || code}
             </div>
-            <SHPill color="dark" style={{ background: "rgba(125,168,255,0.22)", color: "#7DA8FF" }}>
-              {t.anon_status_review}
+          </div>
+          <SHPill color="dark" style={{ background: "rgba(125,168,255,0.22)", color: "#7DA8FF" }}>
+              {status === "resolved" ? t.anon_status_resolved : status === "review" ? t.anon_status_review : t.anon_status_received}
             </SHPill>
           </div>
           <div style={{ marginTop: 14, fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.5 }}>
@@ -525,6 +555,23 @@ function SHReportStatusScreen({ t, lang, accent, code, onBack, onHome }) {
           </div>
         </SHCard>
       </div>
+
+      {report && (
+        <div style={{ padding: "0 20px 16px" }}>
+          <SHCard radius={16} pad={16}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#191F28" }}>
+              {lang === "ko" ? "접수된 신고 내용" : "Submitted report"}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 12, color: "#6B7683", lineHeight: 1.6 }}>
+              {lang === "ko" ? `언제: ${report.when || "-"}` : `When: ${report.when || "-"}`}<br/>
+              {lang === "ko" ? `어디서: ${report.where || "-"}` : `Where: ${report.where || "-"}`}
+            </div>
+            <div style={{ marginTop: 10, fontSize: 14, color: "#191F28", lineHeight: 1.6 }}>
+              {report.what || "-"}
+            </div>
+          </SHCard>
+        </div>
+      )}
 
       {/* Timeline */}
       <div style={{ padding: "0 20px" }}>

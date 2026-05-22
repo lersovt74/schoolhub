@@ -81,7 +81,7 @@ function PCSidebar({ items, active, onSelect, school, accent, lang }) {
   );
 }
 
-function PCTopbar({ title, breadcrumb, accent, studentName, grade, lang, onTweaks }) {
+function PCTopbar({ title, breadcrumb, accent, studentName, grade, lang, onTweaks, onLogout }) {
   return (
     <header style={{
       height: 64, flex: "0 0 64px",
@@ -157,6 +157,29 @@ function PCTopbar({ title, breadcrumb, accent, studentName, grade, lang, onTweak
           </div>
         </div>
       </div>
+
+      <button
+        onClick={onLogout}
+        className="tds-press"
+        style={{
+          height: 40,
+          padding: "0 16px",
+          border: "1px solid #E5E8EB",
+          borderRadius: 999,
+          background: "#fff",
+          color: "#4E5968",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          fontSize: 13,
+          fontWeight: 800,
+          letterSpacing: "-0.012em",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        {lang === "ko" ? "로그아웃" : "Log out"}
+      </button>
     </header>
   );
 }

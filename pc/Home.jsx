@@ -82,7 +82,7 @@ function PCHome({ L, lang, accent, onNavigate }) {
             color: "#fff", borderRadius: 20, padding: 28,
             position: "relative", overflow: "hidden", cursor: "pointer",
             maxWidth: 1280,
-            minHeight: 204,
+            minHeight: 252,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -272,7 +272,7 @@ function PCHome({ L, lang, accent, onNavigate }) {
               padding: "12px 14px", borderRadius: 12,
               background: n.pinned ? "rgba(240,68,82,0.06)" : "#F8F9FA",
               cursor: "pointer",
-            }} className="tds-press">
+            }} className="tds-press" onClick={() => onNavigate("notice-detail", { id: n.id })}>
               <div style={{
                 width: 4, height: 36, borderRadius: 2,
                 background: n.pinned ? "#F04452" : "#D1D6DB", flex: "0 0 4px",

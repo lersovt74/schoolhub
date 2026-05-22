@@ -1,7 +1,7 @@
 // pc/Screens.jsx — remaining desktop screens batched: Meal, Timetable, Calendar, Forms, Exams.
 
 // ═══ NOTICES ═════════════════════════════════════════════════════════════════
-function PCNotices({ L, lang, accent }) {
+function PCNotices({ L, lang, accent, onOpen }) {
   const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
   const visibleNotices = window.SHVisibleNotices ? window.SHVisibleNotices(d.notices, window.SH_USER) : d.notices;
   const [tab, setTab] = React.useState("all");
@@ -38,7 +38,10 @@ function PCNotices({ L, lang, accent }) {
           return (
             <button
               key={n.id}
-              onClick={() => toggleRead(n.id)}
+              onClick={() => {
+                toggleRead(n.id);
+                onOpen?.(n.id);
+              }}
               className="tds-press"
               style={{
                 width: "100%", border: 0, background: "#fff", cursor: "pointer",
@@ -88,6 +91,71 @@ function PCNotices({ L, lang, accent }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function PCNoticeDetail({ L, lang, accent, noticeId }) {
+  const { data } = useSHData();
+  const notice = (data.notices || []).find((n) => n.id === noticeId) || (data.notices || [])[0];
+  if (!notice) return null;
+
+  const attachments = Array.isArray(notice.attachments) ? notice.attachments : [];
+  const imageAssets = attachments.filter((asset) => String(asset.type || "").startsWith("image/"));
+  const fileAssets = attachments.filter((asset) => !String(asset.type || "").startsWith("image/"));
+
+  return (
+    <div style={{ padding: 32, maxWidth: 1100 }}>
+      <div style={{ background: "#fff", borderRadius: 18, padding: 28, border: "1px solid #F2F4F6" }}>
+        <div style={{ fontSize: 34, fontWeight: 800, color: "#191F28", letterSpacing: "-0.03em", lineHeight: 1.24 }}>
+          {notice.title}
+        </div>
+        <div style={{ marginTop: 14, fontSize: 14, color: "#6B7683", lineHeight: 1.45 }}>
+          장평중학교
+          <br />
+          {notice.createdAtLabel || notice.time_ko || notice.time_en}
+        </div>
+
+        {!!notice.body && (
+          <div style={{ marginTop: 24, fontSize: 16, color: "#191F28", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+            {notice.body}
+          </div>
+        )}
+
+        {imageAssets.length > 0 && (
+          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+            {imageAssets.map((asset) => (
+              <img
+                key={asset.id}
+                src={asset.dataUrl}
+                alt={asset.name}
+                style={{ width: "100%", borderRadius: 16, border: "1px solid #E5E8EB" }}
+              />
+            ))}
+          </div>
+        )}
+
+        {fileAssets.length > 0 && (
+          <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 10 }}>
+            {fileAssets.map((asset) => (
+              <button
+                key={asset.id}
+                onClick={() => window.SHDownloadAsset?.(asset, window.SHSlug?.(notice.title, "notice"))}
+                className="tds-press"
+                style={{
+                  width: "100%", border: 0, background: "rgba(49,130,246,0.08)", color: "#1B64DA",
+                  borderRadius: 14, padding: "16px 18px", fontFamily: "inherit",
+                  display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                }}
+              >
+                <IcDocument size={18}/>
+                <span style={{ flex: 1, textAlign: "left", fontSize: 14, fontWeight: 700 }}>{asset.name}</span>
+                <IcDownload size={18}/>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -472,12 +540,20 @@ function PCCalendar({ L, lang, accent }) {
 
 // ═══ FORMS ═══════════════════════════════════════════════════════════════════
 function PCForms({ L, lang, accent }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [q, setQ] = React.useState("");
-  const filtered = d.forms.filter((f) =>
+  const forms = Array.isArray(data.forms) ? data.forms : [];
+  const filtered = forms.filter((f) =>
     !q || (lang === "ko" ? f.title_ko : f.title_en).toLowerCase().includes(q.toLowerCase())
   );
   const recent = [...filtered].sort((a, b) => b.recent - a.recent).slice(0, 4);
+  const downloadForm = (form) => {
+    if (form.asset) window.SHDownloadAsset?.(form.asset, window.SHSlug?.(form.title_ko, "form"));
+    updateData((draft) => {
+      const item = (draft.forms || []).find((x) => x.id === form.id);
+      if (item) item.recent = Number(item.recent || 0) + 1;
+    });
+  };
 
   return (
     <div style={{ padding: 32, maxWidth: 1100 }}>
@@ -501,7 +577,7 @@ function PCForms({ L, lang, accent }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
             {recent.map((f) => (
-              <div key={f.id} className="tds-press" style={{
+              <div key={f.id} onClick={() => downloadForm(f)} className="tds-press" style={{
                 background: "#fff", borderRadius: 14, padding: 18,
                 border: "1px solid #F2F4F6", cursor: "pointer",
                 display: "flex", flexDirection: "column", gap: 14,
@@ -533,7 +609,7 @@ function PCForms({ L, lang, accent }) {
       </div>
       <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #F2F4F6" }}>
         {filtered.map((f, i) => (
-          <div key={f.id} className="tds-press" style={{
+          <div key={f.id} onClick={() => downloadForm(f)} className="tds-press" style={{
             display: "flex", alignItems: "center", gap: 16, padding: "16px 20px",
             borderBottom: i < filtered.length - 1 ? "1px solid #F2F4F6" : "none",
             cursor: "pointer",
@@ -553,7 +629,7 @@ function PCForms({ L, lang, accent }) {
                 {f.size}{L.forms_size_kb} · {lang === "ko" ? `${f.recent}회 다운로드` : `${f.recent} downloads`}
               </div>
             </div>
-            <button className="tds-press" style={{
+            <button onClick={(e) => { e.stopPropagation(); downloadForm(f); }} className="tds-press" style={{
               height: 36, padding: "0 14px", borderRadius: 10, border: 0,
               background: `${accent}14`, color: accent,
               fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
@@ -570,15 +646,23 @@ function PCForms({ L, lang, accent }) {
 
 // ═══ EXAMS ═══════════════════════════════════════════════════════════════════
 function PCExams({ L, lang, accent }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [subj, setSubj] = React.useState("all");
   const [grade, setGrade] = React.useState("all");
-  const subjects = ["all", ...new Set(d.exams.map((e) => e.subject))];
-  const filtered = d.exams.filter((e) => {
+  const exams = Array.isArray(data.exams) ? data.exams : [];
+  const subjects = ["all", ...new Set(exams.map((e) => e.subject))];
+  const filtered = exams.filter((e) => {
     if (subj !== "all" && e.subject !== subj) return false;
     if (grade !== "all" && e.grade !== Number(grade)) return false;
     return true;
   });
+  const openExam = (exam) => {
+    if (exam.asset) window.SHDownloadAsset?.(exam.asset, window.SHSlug?.(exam.subject, "exam"));
+    updateData((draft) => {
+      const item = (draft.exams || []).find((x) => x.id === exam.id);
+      if (item) item.count = Number(item.count || 0) + 1;
+    });
+  };
 
   return (
     <div style={{ padding: 32, maxWidth: 1100 }}>
@@ -597,7 +681,7 @@ function PCExams({ L, lang, accent }) {
         <div style={{ display: "flex", gap: 6 }}>
           {subjects.map((s) => (
             <Chip key={s} active={subj === s} onClick={() => setSubj(s)}>
-              {s === "all" ? L.exams_subjects_all : (lang === "ko" ? s : d.exams.find(e => e.subject === s)?.subjectEn || s)}
+              {s === "all" ? L.exams_subjects_all : (lang === "ko" ? s : exams.find(e => e.subject === s)?.subjectEn || s)}
             </Chip>
           ))}
         </div>
@@ -615,7 +699,7 @@ function PCExams({ L, lang, accent }) {
         {filtered.map((e) => {
           const subjEmoji = { "수학":"🧮","영어":"📘","국어":"📖","사회":"🌏","과학":"🔬" }[e.subject] || "📚";
           return (
-            <div key={e.id} className="tds-press" style={{
+            <div key={e.id} onClick={() => openExam(e)} className="tds-press" style={{
               background: "#fff", borderRadius: 16, padding: 20,
               border: "1px solid #F2F4F6", cursor: "pointer",
               display: "flex", alignItems: "center", gap: 16,
@@ -651,4 +735,4 @@ function PCExams({ L, lang, accent }) {
   );
 }
 
-Object.assign(window, { PCNotices, PCMeal, PCTimetable, PCCalendar, PCForms, PCExams });
+Object.assign(window, { PCNotices, PCNoticeDetail, PCMeal, PCTimetable, PCCalendar, PCForms, PCExams });

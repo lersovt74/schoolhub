@@ -1,17 +1,25 @@
 // Exams.jsx — Past exam archive (closed to verified students).
 
 function SHExamsScreen({ t, lang, accent, onBack, showToast }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [subj, setSubj] = React.useState("all");
   const [grade, setGrade] = React.useState("all");
 
-  const subjects = ["all", ...new Set(d.exams.map((e) => e.subject))];
+  const subjects = ["all", ...new Set((data.exams || []).map((e) => e.subject))];
 
-  const filtered = d.exams.filter((e) => {
+  const filtered = (data.exams || []).filter((e) => {
     if (subj !== "all" && e.subject !== subj) return false;
     if (grade !== "all" && e.grade !== Number(grade)) return false;
     return true;
   });
+  const openExam = (exam) => {
+    if (exam.asset) window.SHDownloadAsset?.(exam.asset, window.SHSlug?.(exam.subject, "exam"));
+    updateData((draft) => {
+      const item = (draft.exams || []).find((x) => x.id === exam.id);
+      if (item) item.count = Number(item.count || 0) + 1;
+    });
+    showToast(lang === "ko" ? `${exam.subject} 자료를 여는 중…` : `Opening ${exam.subjectEn}...`);
+  };
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 28 }}>
@@ -50,7 +58,7 @@ function SHExamsScreen({ t, lang, accent, onBack, showToast }) {
           return (
             <SHCard
               key={e.id}
-              onClick={() => showToast(lang === "ko" ? `${e.subject} ${e.year} ${e.type} 열람 중…` : `Opening ${e.subjectEn} ${e.year} ${e.type}…`)}
+              onClick={() => openExam(e)}
               radius={16} pad={16}
               style={{ display: "flex", alignItems: "center", gap: 14 }}
             >

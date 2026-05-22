@@ -14,10 +14,15 @@ function SHDesktopApp() {
   const L = window.SH_STRINGS[lang];
   const accent = tw.accent;
   const sync = useSchoolDataSync(window.SH_DATA);
-  window.SH_RUNTIME_DATA = sync.data;
+  window.SH_RUNTIME_DATA = window.SH_DATA || sync.data;
 
-  const [route, setRoute] = React.useState(window.SH_USER?.role === "admin" ? "admin" : "home");
+  const [route, setRouteState] = React.useState(window.SH_USER?.role === "admin" ? "admin" : "home");
+  const [routeParams, setRouteParams] = React.useState({});
   const scrollRef = React.useRef(null);
+  const setRoute = React.useCallback((id, params = {}) => {
+    setRouteState(id);
+    setRouteParams(params);
+  }, []);
 
   React.useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "auto" });
@@ -42,6 +47,7 @@ function SHDesktopApp() {
     timetable:  { t: L.home_timetable, bc: lang === "ko" ? "정보 / 시간표" : "Info / Timetable" },
     calendar:   { t: L.cal_title, bc: lang === "ko" ? "정보 / 학사일정" : "Info / Calendar" },
     notices:    { t: L.home_notice, bc: lang === "ko" ? "정보 / 주요 공지" : "Info / Notices" },
+    "notice-detail": { t: L.home_notice, bc: lang === "ko" ? "정보 / 주요 공지" : "Info / Notices" },
     lost:       { t: L.lost_title, bc: lang === "ko" ? "생활 / 분실물" : "Life / Lost & Found" },
     board:      { t: L.sug_title, bc: lang === "ko" ? "소통 / 건의함" : "Voice / Board" },
     anon:       { t: L.anon_title, bc: lang === "ko" ? "소통 / 익명 신고" : "Voice / Anonymous" },
@@ -59,7 +65,11 @@ function SHDesktopApp() {
       case "meal":  return window.PCMeal ? <PCMeal L={L} lang={lang} accent={accent} showAllergyWarning={tw.showAllergyWarning}/> : <RouteStub label={titles[route]?.t}/>;
       case "timetable": return window.PCTimetable ? <PCTimetable L={L} lang={lang} accent={accent}/> : <RouteStub label={titles[route]?.t}/>;
       case "calendar": return window.PCCalendar ? <PCCalendar L={L} lang={lang} accent={accent}/> : <RouteStub label={titles[route]?.t}/>;
-      case "notices": return window.PCNotices ? <PCNotices L={L} lang={lang} accent={accent}/> : <RouteStub label={titles[route]?.t}/>;
+      case "notices": return window.PCNotices ? <PCNotices L={L} lang={lang} accent={accent} onOpen={(id) => setRoute("notice-detail", { id })}/> : <RouteStub label={titles[route]?.t}/>;
+      case "notice-detail":
+        return window.PCNoticeDetail
+          ? <PCNoticeDetail L={L} lang={lang} accent={accent} noticeId={routeParams?.id}/>
+          : <RouteStub label={titles[route]?.t}/>;
       case "forms": return window.PCForms ? <PCForms L={L} lang={lang} accent={accent}/> : <RouteStub label={titles[route]?.t}/>;
       case "exams": return window.PCExams ? <PCExams L={L} lang={lang} accent={accent}/> : <RouteStub label={titles[route]?.t}/>;
       case "admin":
@@ -90,6 +100,7 @@ function SHDesktopApp() {
           studentName={L.studentName}
           grade={L.grade}
           lang={lang}
+          onLogout={window.SHUser?.logout}
         />
         <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {renderRoute()}

@@ -4,12 +4,12 @@
 // List (root) — segmented "찾아주세요" / "찾아가세요"
 // ─────────────────────────────────────────────────────────────────────────────
 function SHLostListScreen({ t, lang, accent, onGo, push }) {
-  const [seg, setSeg] = React.useState("found");   // default to "찾아가세요" (items being held)
-  const [statusFilter, setStatusFilter] = React.useState("all");
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-
-  const items = d.lostItems.filter((it) => it.category === seg)
-    .filter((it) => statusFilter === "all" || it.status === statusFilter);
+  const [seg, setSeg] = React.useState("found");
+  const { data } = useSHData();
+  const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
+  const items = (data.lostItems || [])
+    .filter((it) => it.category === seg)
+    .filter((it) => it.status !== "done");
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 20 }}>
@@ -25,10 +25,16 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
               : "14 items are being held right now"}
           </div>
         </div>
-        <button onClick={() => push("lost-register")} className="tds-press" style={{
+        <button
+          onClick={() => {
+            if (seg === "found" && !isAdmin) return;
+            push("lost-register", { category: seg });
+          }}
+          className="tds-press"
+          style={{
           marginLeft: "auto",
           width: 44, height: 44, borderRadius: 22,
-          background: accent, color: "#fff", border: 0,
+          background: seg === "found" && !isAdmin ? "#D1D6DB" : accent, color: "#fff", border: 0,
           display: "inline-flex", alignItems: "center", justifyContent: "center",
           cursor: "pointer", boxShadow: `0 6px 16px ${accent}44`,
         }}>
@@ -46,27 +52,17 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
             { value: "lost", label: t.lost_seg_lost },
           ]}
         />
-      </div>
-
-      {/* Filter chips */}
-      <div style={{
-        padding: "16px 20px 4px",
-        display: "flex", gap: 6, overflowX: "auto",
-      }}>
-        {[
-          { v: "all", l: t.lost_filter },
-          { v: "keep", l: t.lost_status_keep },
-          { v: "open", l: t.lost_status_open },
-          { v: "done", l: t.lost_status_done },
-        ].map((f) => (
-          <Chip key={f.v} active={statusFilter === f.v} onClick={() => setStatusFilter(f.v)}>
-            {f.l}
-          </Chip>
-        ))}
+        <div style={{ marginTop: 10, fontSize: 12, color: "#8B95A1", lineHeight: 1.5 }}>
+          {seg === "found"
+            ? "찾아가세요 페이지는 관리자만 등록 가능합니다."
+            : lang === "ko"
+              ? "분실한 물건을 빠르게 올려서 학교 안에서 찾아보세요."
+              : "Post lost items so others can help you find them quickly."}
+        </div>
       </div>
 
       {/* List */}
-      <div style={{ padding: "12px 16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div style={{ padding: "16px 16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
         {items.length === 0 ? (
           <SHEmpty
             icon={<div style={{ fontSize: 56 }}>🔍</div>}
@@ -92,10 +88,9 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
                 : it.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <SHPill color={it.status === "open" ? "red" : it.status === "keep" ? "blue" : "green"}>
-                  {it.status === "open" ? t.lost_status_open
-                    : it.status === "keep" ? t.lost_status_keep : t.lost_status_done}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <SHPill color={it.category === "found" ? "blue" : "red"}>
+                  {it.category === "found" ? t.lost_seg_found : t.lost_seg_lost}
                 </SHPill>
                 <span style={{ fontSize: 11, color: "#8B95A1", marginLeft: "auto" }}>{it[`time_${lang}`]}</span>
               </div>
@@ -121,8 +116,20 @@ function SHLostListScreen({ t, lang, accent, onGo, push }) {
 // Detail
 // ─────────────────────────────────────────────────────────────────────────────
 function SHLostDetailScreen({ t, lang, accent, itemId, onBack, showToast }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-  const it = d.lostItems.find((x) => x.id === itemId) || d.lostItems[0];
+  const { data } = useSHData();
+  const it = (data.lostItems || []).find((x) => x.id === itemId) || (data.lostItems || [])[0];
+  if (!it) {
+    return (
+      <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47 }}>
+        <SHNav title="" onBack={onBack}/>
+        <SHEmpty
+          icon={<div style={{ fontSize: 56 }}>📦</div>}
+          title={lang === "ko" ? "분실물 정보를 찾을 수 없어요" : "Item not found"}
+          sub={lang === "ko" ? "목록에서 다른 분실물을 선택해 주세요" : "Please choose another item from the list"}
+        />
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 100 }}>
@@ -151,10 +158,6 @@ function SHLostDetailScreen({ t, lang, accent, itemId, onBack, showToast }) {
           }}>
             <SHPill color={it.category === "lost" ? "red" : "blue"}>
               {it.category === "lost" ? t.lost_seg_lost : t.lost_seg_found}
-            </SHPill>
-            <SHPill color={it.status === "open" ? "red" : it.status === "keep" ? "blue" : "green"}>
-              {it.status === "open" ? t.lost_status_open
-                : it.status === "keep" ? t.lost_status_keep : t.lost_status_done}
             </SHPill>
           </div>
         </div>
@@ -227,8 +230,9 @@ function DetailRow({ icon, label, value, last }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Register form
 // ─────────────────────────────────────────────────────────────────────────────
-function SHLostRegisterScreen({ t, lang, accent, onBack, showToast }) {
-  const [category, setCategory] = React.useState("found");
+function SHLostRegisterScreen({ t, lang, accent, onBack, showToast, initialCategory = "lost" }) {
+  const isAdmin = window.SHIsAdminUser ? window.SHIsAdminUser() : window.SH_USER?.role === "admin";
+  const [category, setCategory] = React.useState(isAdmin ? initialCategory : "lost");
   const [where, setWhere] = React.useState("");
   const [feature, setFeature] = React.useState("");
   const [when, setWhen] = React.useState("2026.05.21");
@@ -236,7 +240,7 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast }) {
   const fileRef = React.useRef(null);
   const [submitting, setSubmitting] = React.useState(false);
 
-  const canSubmit = where.trim() && feature.trim() && photo;
+  const canSubmit = where.trim() && feature.trim() && photo && (isAdmin || category !== "found");
 
   const handlePhotoPick = () => {
     fileRef.current?.click();
@@ -257,6 +261,7 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast }) {
   };
 
   const submit = () => {
+    if (!canSubmit || (category === "found" && !isAdmin)) return;
     setSubmitting(true);
     setTimeout(() => {
       setSubmitting(false);
@@ -277,7 +282,7 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast }) {
           desc_ko: feature.trim(),
           desc_en: feature.trim(),
           status: category === "found" ? "keep" : "open",
-          postedBy: "익명",
+          postedBy: category === "found" ? "관리자" : (window.SH_USER?.name || "익명"),
           time_ko: "방금",
           time_en: "now",
         });
@@ -294,12 +299,17 @@ function SHLostRegisterScreen({ t, lang, accent, onBack, showToast }) {
       <div style={{ flex: 1, overflowY: "auto", padding: "8px 20px 0" }}>
         {/* Category */}
         <SHSeg
-          value={category} onChange={setCategory}
+          value={category} onChange={(next) => { if (next === "found" && !isAdmin) return; setCategory(next); }}
           options={[
             { value: "found", label: t.lost_form_cat_found },
             { value: "lost", label: t.lost_form_cat_lost },
           ]}
         />
+        {category === "found" && (
+          <div style={{ marginTop: 10, fontSize: 12, color: "#8B95A1", lineHeight: 1.5 }}>
+            찾아가세요 페이지는 관리자만 등록 가능합니다.
+          </div>
+        )}
 
         {/* Photo */}
         <div style={{ marginTop: 20 }}>

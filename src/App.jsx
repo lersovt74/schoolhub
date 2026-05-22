@@ -17,13 +17,14 @@ const ACCENT_OPTIONS = [
   "#FF6B35", // orange
 ];
 
-function SHMobileApp() {
+function SHMobileApp({ onLogout }) {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const showTweaks = window.location.protocol === "file:" || ["127.0.0.1", "localhost"].includes(window.location.hostname);
   const lang = t.language;
   const L = window.SH_STRINGS[lang];
   const accent = t.accent;
   const sync = useSchoolDataSync(window.SH_DATA);
-  window.SH_RUNTIME_DATA = sync.data;
+  window.SH_RUNTIME_DATA = window.SH_DATA || sync.data;
 
   // Navigation stack
   const initialRoot = window.SH_USER?.role === "admin" ? "admin" : "home";
@@ -86,31 +87,43 @@ function SHMobileApp() {
   const activeTab = screenToTab[top.id] || tab;
 
   // Stub renderer — wired one-by-one
-  const screen = renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, anonState, showToast, setTweak });
+  const screen = renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, anonState, showToast, setTweak, onLogout });
 
   // Show tab bar on root tabs only.
   const isRoot = stack.length === 1;
 
   return (
-    <div className="device-fit">
-      <IOSDevice width={390} height={844} keyboard={false}>
-        <div style={{ position: "relative", width: "100%", height: "100%", display: "flex", flexDirection: "column" }}>
-          <div ref={scrollRef} className="sh-mobile-scroll" style={{ flex: 1, overflowY: "auto", position: "relative", background: "#F2F4F6", overflowX: "hidden" }}>
-            {screen}
-          </div>
-          {isRoot && (
-            <SHTabBar
-              tabs={tabs}
-              active={activeTab}
-              accent={accent}
-              onChange={(id) => go(id)}
-            />
-          )}
-          <Toast show={!!toast}>{toast}</Toast>
+    <div style={{
+      width: "100%",
+      minHeight: "100dvh",
+      background: "#F2F4F6",
+      display: "flex",
+      justifyContent: "center",
+    }}>
+      <div style={{
+        width: "100%",
+        maxWidth: 520,
+        minHeight: "100dvh",
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        background: "#F2F4F6",
+      }}>
+        <div ref={scrollRef} className="sh-mobile-scroll" style={{ flex: 1, overflowY: "auto", position: "relative", background: "#F2F4F6", overflowX: "hidden" }}>
+          {screen}
         </div>
-      </IOSDevice>
+        {isRoot && (
+          <SHTabBar
+            tabs={tabs}
+            active={activeTab}
+            accent={accent}
+            onChange={(id) => go(id)}
+          />
+        )}
+        <Toast show={!!toast}>{toast}</Toast>
+      </div>
 
-      <TweaksPanel title="Tweaks">
+      {showTweaks && <TweaksPanel title="Tweaks">
         <TweakSection label={lang === "ko" ? "포인트 컬러" : "Accent"}>
           <TweakColor
             label={lang === "ko" ? "메인 컬러" : "Primary"}
@@ -163,7 +176,7 @@ function SHMobileApp() {
             onChange={(v) => setTweak("language", v)}
           />
         </TweakSection>
-      </TweaksPanel>
+      </TweaksPanel>}
     </div>
   );
 }
@@ -172,7 +185,7 @@ function SHMobileApp() {
 function SHTabBar({ tabs, active, accent, onChange }) {
   return (
     <div style={{
-      flex: "0 0 auto", height: 82, paddingBottom: 10,
+      flex: "0 0 auto", minHeight: 74, paddingBottom: "max(10px, env(safe-area-inset-bottom))",
       background: "rgba(255,255,255,0.96)",
       backdropFilter: "blur(20px)",
       WebkitBackdropFilter: "blur(20px)",
@@ -197,7 +210,7 @@ function SHTabBar({ tabs, active, accent, onChange }) {
 }
 
 // Screen router. Stubs for not-yet-built screens.
-function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, anonState, showToast, setTweak }) {
+function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, anonState, showToast, setTweak, onLogout }) {
   switch (top.id) {
     case "home":
       return <SHHomeScreen
@@ -220,7 +233,11 @@ function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, an
         : <ScreenStub title={L.cal_title} onBack={pop} />;
     case "notices":
       return window.SHNoticesScreen
-        ? <SHNoticesScreen t={L} lang={lang} accent={accent} onBack={pop}/>
+        ? <SHNoticesScreen t={L} lang={lang} accent={accent} onBack={pop} push={push}/>
+        : <ScreenStub title={L.home_notice} onBack={pop} />;
+    case "notice-detail":
+      return window.SHNoticeDetailScreen
+        ? <SHNoticeDetailScreen t={L} lang={lang} accent={accent} onBack={pop} noticeId={top.params?.id}/>
         : <ScreenStub title={L.home_notice} onBack={pop} />;
     case "lost":
       return window.SHLostListScreen
@@ -232,7 +249,7 @@ function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, an
         : <ScreenStub title={L.lost_title} onBack={pop} />;
     case "lost-register":
       return window.SHLostRegisterScreen
-        ? <SHLostRegisterScreen t={L} lang={lang} accent={accent} onBack={pop} showToast={showToast}/>
+        ? <SHLostRegisterScreen t={L} lang={lang} accent={accent} onBack={pop} showToast={showToast} initialCategory={top.params?.category || "lost"}/>
         : <ScreenStub title={L.lost_form_title} onBack={pop} />;
     case "report":
       return window.SHReportHomeScreen
@@ -246,35 +263,29 @@ function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, an
             state={anonState} setState={setAnonState} onBack={pop}
             onSubmit={(code) => {
               setAnonState((s) => ({ ...s, code }));
-              window.SHDataState?.update?.((draft) => {
-                if (!Array.isArray(draft.reports)) draft.reports = [];
-                draft.reports.unshift({
-                  id: `r-${Date.now()}`,
-                  code,
-                  category: anonState.category,
-                  when: anonState.when,
-                  where: anonState.where,
-                  what: anonState.what,
-                  status: "review",
-                  createdAt: new Date().toISOString(),
-                });
+              const report = window.SHCreateReport?.({
+                code,
+                category: anonState.category,
+                when: anonState.when,
+                where: anonState.where,
+                what: anonState.what,
               });
-              push("report-done");
+              push("report-done", { code, reportId: report?.id });
             }}/>
         : <ScreenStub title={L.anon_form_title} onBack={pop} />;
     case "report-done":
       return window.SHReportDoneScreen
-        ? <SHReportDoneScreen t={L} lang={lang} accent={accent} code={anonState.code}
-            onCheck={() => push("report-status")} onHome={() => go("home")} showToast={showToast}/>
+        ? <SHReportDoneScreen t={L} lang={lang} accent={accent} code={top.params?.code || anonState.code}
+            onCheck={() => push("report-status", { code: top.params?.code || anonState.code, reportId: top.params?.reportId })} onHome={() => go("home")} showToast={showToast}/>
         : <ScreenStub title={L.anon_done_title} />;
     case "report-check":
       return window.SHReportCheckScreen
         ? <SHReportCheckScreen t={L} lang={lang} accent={accent} onBack={pop}
-            onSuccess={() => push("report-status")} prefillCode={anonState.code}/>
+            onSuccess={(report) => push("report-status", { code: report.code, reportId: report.id })} prefillCode={anonState.code}/>
         : <ScreenStub title={L.anon_check} onBack={pop} />;
     case "report-status":
       return window.SHReportStatusScreen
-        ? <SHReportStatusScreen t={L} lang={lang} accent={accent} code={anonState.code || "X3K9MZ"} onBack={pop} onHome={() => go("home")}/>
+        ? <SHReportStatusScreen t={L} lang={lang} accent={accent} code={top.params?.code || anonState.code || "X3K9MZ"} reportId={top.params?.reportId} onBack={pop} onHome={() => go("home")}/>
         : <ScreenStub title={L.anon_status_title} onBack={pop} />;
     case "board":
       return window.SHBoardScreen
@@ -298,7 +309,7 @@ function renderScreen({ top, L, lang, accent, t, push, pop, go, setAnonState, an
         : <ScreenStub title={L.more_account} onBack={pop} />;
     case "settings":
       return window.SHSettingsScreen
-        ? <SHSettingsScreen t={L} lang={lang} accent={accent} onBack={pop} go={go}/>
+        ? <SHSettingsScreen t={L} lang={lang} accent={accent} onBack={pop} go={go} onLogout={onLogout}/>
         : <ScreenStub title={L.more_settings} onBack={pop} />;
     case "forms":
       return window.SHFormsScreen

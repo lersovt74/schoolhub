@@ -529,8 +529,9 @@ async function syncNeisSchoolData(baseData, date = new Date()) {
 }
 
 function useSchoolDataSync(baseData) {
+  const baseRef = React.useRef(baseData);
   const [state, setState] = React.useState({
-    data: baseData,
+    data: baseRef.current,
     loading: false,
     synced: false,
     lastSyncAt: null,
@@ -539,8 +540,8 @@ function useSchoolDataSync(baseData) {
 
   const refresh = React.useCallback(async () => {
     const cfg = window.SH_NEIS_CONFIG || SH_NEIS_DEFAULT_CONFIG;
-    const snapshot = window.SHDataState?.get?.() || window.SH_RUNTIME_DATA || window.SH_DATA || baseData;
-    if (!cfg.enabled) {
+    const snapshot = window.SHDataState?.get?.() || window.SH_DATA || window.SH_RUNTIME_DATA || baseRef.current;
+    if (!cfg.enabled || window.SH_USER?.role === "admin") {
       setState((s) => ({ ...s, data: snapshot, loading: false, synced: false, error: null }));
       return;
     }
@@ -549,10 +550,24 @@ function useSchoolDataSync(baseData) {
     try {
       const nowDate = window.SHSchoolTime?.getKoreaDate ? window.SHSchoolTime.getKoreaDate() : new Date();
       const res = await syncNeisSchoolData(snapshot, nowDate);
-      window.SHDataState?.save?.(res.data);
+      const latest = window.SHDataState?.get?.() || window.SH_RUNTIME_DATA || window.SH_DATA || snapshot;
+      const merged = {
+        ...latest,
+        meal: res.data?.meal || latest.meal,
+        timetable: res.data?.timetable || latest.timetable,
+        calendar: res.data?.calendar || latest.calendar,
+        synced: res.data?.synced ?? latest.synced,
+        officeCode: res.data?.officeCode || latest.officeCode,
+        schoolCode: res.data?.schoolCode || latest.schoolCode,
+        mealSynced: res.data?.mealSynced ?? latest.mealSynced,
+        mealRangeSynced: res.data?.mealRangeSynced ?? latest.mealRangeSynced,
+        timetableSynced: res.data?.timetableSynced ?? latest.timetableSynced,
+        calendarSynced: res.data?.calendarSynced ?? latest.calendarSynced,
+      };
+      window.SHDataState?.save?.(merged);
       setState((s) => ({
         ...s,
-        data: res.data,
+        data: merged,
         loading: false,
         synced: !!res.synced,
         error: null,
@@ -567,7 +582,7 @@ function useSchoolDataSync(baseData) {
         error: err.message || "NEIS 동기화 실패",
       }));
     }
-  }, [baseData]);
+  }, []);
 
   React.useEffect(() => {
     refresh();
@@ -577,7 +592,7 @@ function useSchoolDataSync(baseData) {
 }
 
 function SHGetData() {
-  return window.SH_RUNTIME_DATA || window.SH_DATA;
+  return window.SH_DATA || window.SH_RUNTIME_DATA;
 }
 
 Object.assign(window, {

@@ -2,22 +2,24 @@
 // List of suggestions with like(👍) -> reorder, status pills, and a detail view.
 
 function SHBoardScreen({ t, lang, accent, push }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
+  const { data, updateData } = useSHData();
   const [sort, setSort] = React.useState("hot");  // hot | new
   const [filter, setFilter] = React.useState("all");
-
-  // Mutable likes/likedBy state so users can toggle like
-  const [suggestions, setSuggestions] = React.useState(() =>
-    d.suggestions.map((s) => ({ ...s, liked: false }))
-  );
+  const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : `${window.SH_USER?.grade}-${window.SH_USER?.className}-${window.SH_USER?.number}`;
 
   const toggleLike = (id) => {
-    setSuggestions((arr) => arr.map((s) =>
-      s.id === id ? { ...s, liked: !s.liked, likes: s.likes + (s.liked ? -1 : 1) } : s
-    ));
+    updateData((draft) => {
+      const suggestion = (draft.suggestions || []).find((s) => s.id === id);
+      if (!suggestion) return;
+      if (!Array.isArray(suggestion.likedBy)) suggestion.likedBy = [];
+      const idx = suggestion.likedBy.indexOf(userCode);
+      if (idx >= 0) suggestion.likedBy.splice(idx, 1);
+      else suggestion.likedBy.push(userCode);
+      suggestion.likes = suggestion.likedBy.length;
+    });
   };
 
-  const sorted = [...suggestions]
+  const sorted = [...(data.suggestions || [])]
     .filter((s) => filter === "all" || s.status === filter)
     .sort((a, b) => sort === "hot" ? b.likes - a.likes : (a.id < b.id ? 1 : -1));
 
@@ -141,19 +143,19 @@ function SHBoardScreen({ t, lang, accent, push }) {
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 6,
                   padding: "6px 12px", borderRadius: 999, border: 0,
-                  background: s.liked ? `${accent}1F` : "rgba(7,25,76,0.05)",
-                  color: s.liked ? accent : "#4E5968",
+                  background: (s.likedBy || []).includes(userCode) ? `${accent}1F` : "rgba(7,25,76,0.05)",
+                  color: (s.likedBy || []).includes(userCode) ? accent : "#4E5968",
                   fontSize: 13, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
                   transition: "all 200ms cubic-bezier(.2,.8,.2,1)",
                 }}
               >
-                {s.liked ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>{s.likes.toLocaleString()}</span>
-              </button>
-              <span style={{ marginLeft: "auto", fontSize: 12, color: "#8B95A1" }}>
-                {lang === "ko" ? "댓글 12" : "12 comments"}
-              </span>
-            </div>
+                    {(s.likedBy || []).includes(userCode) ? <IcThumbsUp size={14}/> : <IcThumbsUpOutline size={14}/>}
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{s.likes.toLocaleString()}</span>
+                  </button>
+                  <span style={{ marginLeft: "auto", fontSize: 12, color: "#8B95A1" }}>
+                {lang === "ko" ? `댓글 ${(s.comments || []).length}` : `${(s.comments || []).length} comments`}
+                  </span>
+                </div>
           </SHCard>
         ))}
       </div>
@@ -183,6 +185,8 @@ function SHBoardWriteScreen({ t, lang, accent, onBack, showToast }) {
           body_ko: body.trim(),
           body_en: body.trim(),
           likes: 0,
+          likedBy: [],
+          comments: [],
           status: "open",
           author: "익명",
           time_ko: "방금",
@@ -265,16 +269,47 @@ function SHBoardWriteScreen({ t, lang, accent, onBack, showToast }) {
 // Board detail
 // ─────────────────────────────────────────────────────────────────────────────
 function SHBoardDetailScreen({ t, lang, accent, sid, onBack, showToast }) {
-  const d = window.SHGetData ? window.SHGetData() : window.SH_DATA;
-  const s = d.suggestions.find((x) => x.id === sid) || d.suggestions[0];
-  const [liked, setLiked] = React.useState(false);
-  const likes = s.likes + (liked ? 1 : 0);
+  const { data, updateData } = useSHData();
+  const s = (data.suggestions || []).find((x) => x.id === sid) || (data.suggestions || [])[0];
+  const [commentText, setCommentText] = React.useState("");
+  const userCode = window.SHStudentCode ? window.SHStudentCode(window.SH_USER) : `${window.SH_USER?.grade}-${window.SH_USER?.className}-${window.SH_USER?.number}`;
+  const comments = s?.comments || [];
+  const likes = s?.likes || 0;
+  const liked = !!s && (s.likedBy || []).includes(userCode);
 
-  const comments = [
-    { id: 1, author: "익명1", time_ko: "3일 전", time_en: "3d", body_ko: "저도 동의해요. 오늘 1학년 동생이랑 부딪혔어요.", body_en: "Same — bumped into a 1st grader today." },
-    { id: 2, author: "익명2", time_ko: "3일 전", time_en: "3d", body_ko: "한쪽 방향으로 다니면 훨씬 빠를 것 같아요.", body_en: "One-way would be much faster." },
-    { id: 3, author: "학생회", time_ko: "2일 전", time_en: "2d", body_ko: "의견 감사합니다! 학교에 전달했어요.", body_en: "Thanks! We've raised it with the school.", staff: true },
-  ];
+  const toggleLike = () => {
+    updateData((draft) => {
+      const item = (draft.suggestions || []).find((x) => x.id === sid);
+      if (!item) return;
+      if (!Array.isArray(item.likedBy)) item.likedBy = [];
+      const idx = item.likedBy.indexOf(userCode);
+      if (idx >= 0) item.likedBy.splice(idx, 1);
+      else item.likedBy.push(userCode);
+      item.likes = item.likedBy.length;
+    });
+  };
+
+  const addComment = () => {
+    if (!commentText.trim()) return;
+    updateData((draft) => {
+      const item = (draft.suggestions || []).find((x) => x.id === sid);
+      if (!item) return;
+      if (!Array.isArray(item.comments)) item.comments = [];
+      item.comments.push({
+        id: `c-${Date.now()}`,
+        author: window.SH_USER?.name || "익명",
+        staff: false,
+        time_ko: "방금",
+        time_en: "now",
+        body_ko: commentText.trim(),
+        body_en: commentText.trim(),
+      });
+    });
+    setCommentText("");
+    showToast(lang === "ko" ? "댓글이 등록됐어요" : "Comment posted");
+  };
+
+  if (!s) return null;
 
   return (
     <div style={{ minHeight: "100%", background: "#F2F4F6", paddingTop: 47, paddingBottom: 100 }}>
@@ -344,7 +379,7 @@ function SHBoardDetailScreen({ t, lang, accent, sid, onBack, showToast }) {
       {/* Floating like + comment bar */}
       <SHBottomCTA>
         <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => setLiked((v) => !v)} className="tds-press" style={{
+          <button onClick={toggleLike} className="tds-press" style={{
             height: 52, padding: "0 16px", borderRadius: 14, border: 0,
             background: liked ? `${accent}1F` : "rgba(7,25,76,0.05)",
             color: liked ? accent : "#191F28",
@@ -356,17 +391,16 @@ function SHBoardDetailScreen({ t, lang, accent, sid, onBack, showToast }) {
             <span style={{ fontVariantNumeric: "tabular-nums" }}>{likes.toLocaleString()}</span>
           </button>
           <input
+            value={commentText}
             placeholder={lang === "ko" ? "댓글을 적어주세요" : "Add a comment"}
             style={{
               flex: 1, height: 52, padding: "0 16px", borderRadius: 14, border: 0,
               background: "rgba(7,25,76,0.05)", color: "#191F28", fontFamily: "inherit",
               fontSize: 14, fontWeight: 500, outline: "none",
             }}
+            onChange={(e) => setCommentText(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && e.target.value.trim()) {
-                showToast(lang === "ko" ? "댓글이 등록됐어요" : "Comment posted");
-                e.target.value = "";
-              }
+              if (e.key === "Enter" && commentText.trim()) addComment();
             }}
           />
         </div>
