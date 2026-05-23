@@ -148,6 +148,12 @@ function getHomeHeadline(nowInfo, lang, studentName = "") {
   const next = nowInfo.next;
   if (!cur) return "";
 
+  // 주말(토=6, 일=0): 항상 응원 메시지
+  if (nowInfo.day === 0 || nowInfo.day === 6) {
+    if (lang === "ko") return "내일은 더 좋은 일이 있을거에요.";
+    return "Tomorrow will be an even better day.";
+  }
+
   if (cur.type === "before" || cur.type === "homeroom" || cur.type === "after") {
     if (lang === "ko") return "내일은 더 좋은 일이 있을거에요.";
     return "Tomorrow will be an even better day.";
