@@ -5,7 +5,7 @@
 function SHTopBar({ accent = "#3182F6", school, studentName, grade, onProfile, t }) {
   return (
     <div style={{
-      padding: "12px 0px 0px",
+      padding: "12px 16px 0px 0px",
       marginLeft: -6,
       display: "flex", alignItems: "center", gap: 0,
       background: "transparent",
@@ -59,8 +59,10 @@ function SHNav({ title, onBack, onClose, right, dark = false }) {
       )}
       {title && (
         <div style={{
-          flex: 1, fontSize: 17, fontWeight: 700, color: c, textAlign: "center",
-          letterSpacing: "-0.012em", padding: onBack ? "0 44px 0 0" : "0 12px",
+          position: "absolute", left: 0, right: 0,
+          fontSize: 17, fontWeight: 700, color: c, textAlign: "center",
+          letterSpacing: "-0.012em",
+          pointerEvents: "none",
         }}>{title}</div>
       )}
       {right && <div style={{ marginLeft: "auto", display: "flex", gap: 4, paddingRight: 6 }}>{right}</div>}

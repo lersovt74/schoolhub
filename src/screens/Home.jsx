@@ -71,7 +71,10 @@ function SHHomeScreen({ t, lang, accent, mealLayout, showAllergyWarning, onGo })
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, color: "#191F28", letterSpacing: "-0.02em", marginTop: 4, lineHeight: 1.25 }}>
           {t.studentName}{lang === "ko" ? "님, " : ", "}<br/>
-          {headline}
+          {lang === "ko" && headline.includes("까지 ") ? (() => {
+            const idx = headline.indexOf("까지 ") + 3;
+            return <>{headline.slice(0, idx)}<br/>{headline.slice(idx + 1)}</>;
+          })() : headline}
         </div>
       </div>
 
