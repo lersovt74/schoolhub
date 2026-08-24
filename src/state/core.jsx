@@ -67,6 +67,12 @@ function shMergeValue(existing, incoming, fieldName = "", deletedMap = {}) {
   if (incoming == null) return existing;
   if (existing == null) return incoming;
   if (Array.isArray(existing) || Array.isArray(incoming)) return shMergeArray(existing, incoming, fieldName, deletedMap);
+  if (typeof existing === "number" && typeof incoming === "number") {
+    if (fieldName === "likes" || fieldName === "recent" || fieldName === "__updatedAt") {
+      return Math.max(existing, incoming);
+    }
+    return incoming;
+  }
   if (shIsObject(existing) && shIsObject(incoming)) {
     const next = { ...existing };
     for (const key of Object.keys(incoming)) {
@@ -81,40 +87,38 @@ function shMergeArray(existing, incoming, fieldName = "", deletedMap = {}) {
   if (!Array.isArray(existing)) return Array.isArray(incoming) ? incoming : existing;
   if (!Array.isArray(incoming)) return existing;
   const deleted = shDeletedFor(deletedMap, fieldName);
-  const isDeleted = (item) => {
+  const alive = (item) => {
     const key = shEntityKey(item);
-    return key && deleted[key];
+    return !(key && deleted[key]);
   };
-  const canKey =
-    existing.length > 0 &&
-    incoming.length > 0 &&
-    existing.every((item) => !!shEntityKey(item)) &&
-    incoming.every((item) => !!shEntityKey(item));
-  if (!canKey) return incoming.filter((item) => !isDeleted(item));
+
+  // An empty side is never a deletion signal — real deletions come through __deleted.
+  if (existing.length === 0) return incoming.filter(alive);
+  if (incoming.length === 0) return existing.filter(alive);
+
+  const keyable = (arr) => arr.every((item) => !!shEntityKey(item));
+  // Positional arrays (timetable rows, plain strings…) are replaced, not unioned.
+  if (!keyable(existing) || !keyable(incoming)) return incoming.filter(alive);
+
   const map = new Map();
   existing.forEach((item) => {
-    if (!isDeleted(item)) map.set(shEntityKey(item), item);
+    if (alive(item)) map.set(shEntityKey(item), item);
   });
   incoming.forEach((item) => {
-    if (isDeleted(item)) return;
+    if (!alive(item)) return;
     const key = shEntityKey(item);
-    const prev = map.get(key);
-    map.set(key, shMergeValue(prev, item, fieldName, deletedMap));
+    map.set(key, shMergeValue(map.get(key), item, fieldName, deletedMap));
   });
   const out = [];
   const seen = new Set();
-  incoming.forEach((item) => {
+  const push = (item) => {
     const key = shEntityKey(item);
     if (seen.has(key) || deleted[key]) return;
     out.push(map.get(key));
     seen.add(key);
-  });
-  existing.forEach((item) => {
-    const key = shEntityKey(item);
-    if (seen.has(key) || deleted[key]) return;
-    out.push(map.get(key));
-    seen.add(key);
-  });
+  };
+  incoming.forEach(push);
+  existing.forEach(push);
   return out;
 }
 
@@ -149,13 +153,35 @@ function shApplyDataLocal(next, options = {}) {
   return copy;
 }
 
+let shWarnedBackend = false;
+
+// The API reports which store it actually landed on. "file" on a Vercel deploy means
+// no Supabase env vars — writes are dropped and every device stays on its own copy.
+function shNoteBackendStatus(json) {
+  if (!json || typeof json !== "object") return;
+  const status = {
+    backend: json.backend || "unknown",
+    durable: json.durable !== false,
+    error: json.error || null,
+  };
+  window.SH_BACKEND_STATUS = status;
+  if (!status.durable && !shWarnedBackend) {
+    shWarnedBackend = true;
+    console.warn(
+      `[SchoolHub] 공유 저장소가 설정되지 않았어요 (backend: ${status.backend}). ` +
+      "Vercel 프로젝트에 SUPABASE_URL / SUPABASE_SECRET_KEY 환경변수를 넣어야 기기 간 동기화가 됩니다."
+    );
+  }
+}
+
 async function shFetchRemoteState() {
   const cfg = shBackendCfg();
   if (!cfg) return null;
   try {
-    const res = await fetch(cfg.endpoint, { method: "GET" });
+    const res = await fetch(cfg.endpoint, { method: "GET", cache: "no-store" });
+    const json = await res.json().catch(() => null);
+    shNoteBackendStatus(json);
     if (!res.ok) return null;
-    const json = await res.json();
     const state = json?.state;
     if (!state || typeof state !== "object") return null;
     return state;
@@ -171,10 +197,15 @@ async function shPushRemoteState(state) {
     const res = await fetch(cfg.endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      cache: "no-store",
       body: JSON.stringify({ state }),
     });
-    if (!res.ok) return null;
     const json = await res.json().catch(() => null);
+    shNoteBackendStatus(json);
+    if (!res.ok) {
+      console.warn("[SchoolHub] 서버 저장 실패:", json?.error || res.status);
+      return null;
+    }
     const next = json?.state;
     return next && typeof next === "object" ? next : null;
   } catch (_) {
@@ -211,16 +242,93 @@ function shNormalizeUser(user) {
   return { grade, className, number, name, role };
 }
 
+// Only these keys are shared between devices. meal / timetable / calendar are derived
+// per device and per class (the timetable is rotated by class number), so uploading
+// them would make every device overwrite everyone else's view.
+const SH_SHARED_KEYS = ["suggestions", "notices", "lostItems", "reports", "forms", "exams", "ddays", "quote"];
+
+function shPickShared(state) {
+  const src = shIsObject(state) ? state : {};
+  const out = {};
+  SH_SHARED_KEYS.forEach((key) => {
+    if (src[key] !== undefined) out[key] = src[key];
+  });
+  if (shIsObject(src.__deleted)) out.__deleted = src.__deleted;
+  out.__updatedAt = Number(src.__updatedAt) || Date.now();
+  return out;
+}
+
+let shHydration = null;
+let shPushTimer = null;
+let shPushInFlight = 0;
+let shSyncStarted = false;
+let shLoadedOnce = false;
+
+// A fresh device starts from the seed data bundled in data.jsx. Uploading that before
+// reading the server would resurrect deleted posts, so every write waits for the first
+// read to land.
+function shEnsureHydrated() {
+  if (shHydration) return shHydration;
+  shHydration = (async () => {
+    const remote = await shFetchRemoteState();
+    if (remote) shApplyDataLocal(shMergeState(shGetData(), shPickShared(remote)));
+  })();
+  return shHydration;
+}
+
+async function shFlushPush() {
+  shPushTimer = null;
+  await shEnsureHydrated();
+  shPushInFlight += 1;
+  try {
+    const remote = await shPushRemoteState(shPickShared(shGetData()));
+    if (remote) shApplyDataLocal(shMergeState(shGetData(), shPickShared(remote)));
+  } finally {
+    shPushInFlight -= 1;
+  }
+}
+
+function shQueuePush() {
+  if (!shBackendCfg() || shPushTimer) return;
+  shPushTimer = window.setTimeout(shFlushPush, 180);
+}
+
+async function shSyncFromRemote() {
+  if (!shBackendCfg()) return;
+  // A local write is already on its way — its response carries the merged result.
+  if (shPushTimer || shPushInFlight > 0) return;
+  const remote = await shFetchRemoteState();
+  if (!remote || shPushTimer || shPushInFlight > 0) return;
+  shApplyDataLocal(shMergeState(shGetData(), shPickShared(remote)));
+}
+
+// One poller for the whole app — useSHData is mounted by a dozen screens at once.
+function shStartSync() {
+  if (shSyncStarted || !shBackendCfg()) return;
+  shSyncStarted = true;
+  shEnsureHydrated();
+  window.setInterval(shSyncFromRemote, 15000);
+  window.addEventListener("focus", shSyncFromRemote);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") shSyncFromRemote();
+  });
+}
+
 function shSaveData(next) {
   const copy = shApplyDataLocal({ ...(next || {}), __updatedAt: Date.now() });
-  shPushRemoteState(copy).then((remote) => {
-    if (!remote) return;
-    shApplyDataLocal(shMergeState(shGetData(), remote));
-  });
+  shQueuePush();
+  return copy;
+}
+
+// Device-local write: persisted and broadcast, never uploaded.
+function shSaveLocalData(next) {
+  return shApplyDataLocal({ ...(next || {}) });
 }
 
 function shLoadData() {
   if (!window.SH_DEFAULT_DATA) window.SH_DEFAULT_DATA = shClone(window.SH_DATA || {});
+  if (shLoadedOnce) return shGetData();
+  shLoadedOnce = true;
   const stored = shSafeParse(localStorage.getItem(SH_DATA_KEY), null);
   const next = stored && typeof stored === "object" ? stored : shClone(window.SH_DEFAULT_DATA);
   return shApplyDataLocal(next, { notify: false });
@@ -230,13 +338,24 @@ function shGetData() {
   return window.SH_DATA || window.SH_RUNTIME_DATA || {};
 }
 
-function shUpdateData(updater) {
+function shMakeDraft(updater) {
   const before = shClone(shGetData());
   const draft = shClone(before);
   updater(draft);
   draft.__deleted = shMergeDeletedMaps(draft.__deleted, shComputeDeletedMap(before, draft));
+  return draft;
+}
+
+function shUpdateData(updater) {
+  const draft = shMakeDraft(updater);
   draft.__updatedAt = Date.now();
   shSaveData(draft);
+  return draft;
+}
+
+function shUpdateLocalData(updater) {
+  const draft = shMakeDraft(updater);
+  shSaveLocalData(draft);
   return draft;
 }
 
@@ -478,7 +597,8 @@ function shApplyClassFallbackTimetable(user) {
   const baseToday = shClone(base?.timetable?.today || []);
   if (!Array.isArray(baseGrid) || baseGrid.length === 0) return;
   const shift = ((Number(user.className) || 1) - 1) % 5;
-  shUpdateData((draft) => {
+  // Class-specific — must not be pushed to the shared document.
+  shUpdateLocalData((draft) => {
     if (!draft?.timetable?.week) return;
     const rotated = baseGrid.map((row) => {
       if (!Array.isArray(row) || row.length < 5) return row;
@@ -524,40 +644,33 @@ function useSHData() {
   React.useEffect(() => {
     const onChange = (e) => setData(e.detail || shGetData());
     window.addEventListener("sh:data-change", onChange);
+    shStartSync();
+    setData(shGetData());
     return () => window.removeEventListener("sh:data-change", onChange);
   }, []);
-  React.useEffect(() => {
-    let alive = true;
-    const syncFromRemote = async () => {
-      const remote = await shFetchRemoteState();
-      if (!alive || !remote) return;
-      const local = shGetData();
-      // Skip merge when local state is newer — prevents in-flight writes being reverted by a stale poll.
-      const localTs = Number(local.__updatedAt || 0);
-      const remoteTs = Number(remote.__updatedAt || 0);
-      if (localTs > remoteTs) return;
-      shApplyDataLocal(shMergeState(local, remote));
-    };
-    syncFromRemote();
-    const interval = window.setInterval(syncFromRemote, 30000);
-    const onVisible = () => {
-      if (document.visibilityState === "visible") syncFromRemote();
-    };
-    window.addEventListener("focus", syncFromRemote);
-    document.addEventListener("visibilitychange", onVisible);
-    return () => {
-      alive = false;
-      window.clearInterval(interval);
-      window.removeEventListener("focus", syncFromRemote);
-      document.removeEventListener("visibilitychange", onVisible);
-    };
-  }, []);
-  return { data, setData: shSaveData, updateData: shUpdateData, resetData: shResetData };
+  return {
+    data,
+    setData: shSaveData,
+    updateData: shUpdateData,
+    updateLocalData: shUpdateLocalData,
+    resetData: shResetData,
+    refresh: shSyncFromRemote,
+  };
 }
 
 Object.assign(window, {
   SHUserState: { load: shLoadUser, save: shSaveUser, clear: shClearUser, apply: shApplyUserToRuntime },
-  SHDataState: { load: shLoadData, save: shSaveData, get: shGetData, update: shUpdateData, reset: shResetData },
+  SHDataState: {
+    load: shLoadData,
+    save: shSaveData,
+    saveLocal: shSaveLocalData,
+    get: shGetData,
+    update: shUpdateData,
+    updateLocal: shUpdateLocalData,
+    reset: shResetData,
+    sync: shSyncFromRemote,
+    shared: shPickShared,
+  },
   SHVisibleNotices: shVisibleNotices,
   SHNoticeVisibleToUser: shNoticeVisibleToUser,
   SHIsAdminLogin: shIsAdminLogin,

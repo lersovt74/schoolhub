@@ -564,7 +564,8 @@ function useSchoolDataSync(baseData) {
         timetableSynced: res.data?.timetableSynced ?? latest.timetableSynced,
         calendarSynced: res.data?.calendarSynced ?? latest.calendarSynced,
       };
-      window.SHDataState?.save?.(merged);
+      // NEIS results are per-device/per-class — keep them out of the shared document.
+      (window.SHDataState?.saveLocal || window.SHDataState?.save)?.(merged);
       setState((s) => ({
         ...s,
         data: merged,
